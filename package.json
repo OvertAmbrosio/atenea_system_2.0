@@ -1,0 +1,47 @@
+{
+  "name": "atenea_system_2.0",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "tsc-watch --onSuccess \"node dist/index.js\" ",
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OvertAmbrosio/atenea_system_2.0.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/OvertAmbrosio/atenea_system_2.0/issues"
+  },
+  "homepage": "https://github.com/OvertAmbrosio/atenea_system_2.0#readme",
+  "dependencies": {
+    "bcrypt": "^4.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "jsonwebtoken": "^8.5.1",
+    "mongoose": "^5.9.2",
+    "morgan": "^1.9.1",
+    "passport": "^0.4.1",
+    "passport-jwt": "^4.0.0",
+    "winston": "^3.2.1"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^3.0.0",
+    "@types/cors": "^2.8.6",
+    "@types/express": "^4.17.2",
+    "@types/jsonwebtoken": "^8.3.8",
+    "@types/mongoose": "^5.7.3",
+    "@types/morgan": "^1.9.0",
+    "@types/passport": "^1.0.2",
+    "@types/passport-jwt": "^3.0.3",
+    "@types/winston": "^2.4.4",
+    "tsc-watch": "^4.2.0",
+    "typescript": "^3.8.3"
+  }
+}
