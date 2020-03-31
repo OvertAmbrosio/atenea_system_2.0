@@ -1,10 +1,13 @@
 import { Router } from 'express';
-const router = Router();
 
-import { registrar, acceder } from '../controllers/usuario.controller';
+const router:Router = Router();
 
-router.post('/registrar', registrar);
+import { session, acceder, cerrarSesion, configuraciones } from '../controllers/auth.controller';
+
+router.get('/session', session);
 router.post('/acceder', acceder);
+router.patch('/cerrarSesion', cerrarSesion);
+router.patch('/configuraciones', configuraciones);
 
 
 export default router;

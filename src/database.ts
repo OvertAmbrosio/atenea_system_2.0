@@ -4,7 +4,9 @@ import logger from './lib/logger';
 
 const dbOptions: ConnectionOptions = {
   useNewUrlParser: true,
-  useUnifiedTopology: true
+  useUnifiedTopology: true,
+  useCreateIndex: true,
+  useFindAndModify: false
 };
 
 mongoose.connect(config.DB.URI, dbOptions);
@@ -16,6 +18,7 @@ connection.once('open', () => {
 });
 
 connection.on('error', err => {
+  console.log(process.env.MONGODB_URI);
   logger.log({
     level: 'error',
     message: err.message,

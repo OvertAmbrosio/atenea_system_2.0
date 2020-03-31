@@ -1,61 +1,76 @@
 import { model, Schema, Document } from 'mongoose';
 import bcrypt from 'bcrypt';
-import { IUsuario, Usuario } from './usuario'
+import Usuario, { IUsuario } from './Usuario'
 
 export interface IEmpleado extends Document {
-  usuario: IUsuario,
-  nombre?: string,
-  apellido?: string,
-  fecha_nacimiento?: Date,
-  cargo?: string,
+  usuario: IUsuario;
+  nombre: string;
+  apellidos: string;
+  fecha_nacimiento?: Date;
+  cargo?: string;
   contrata?: {
     nombre?: string,
     slug?: string
-  },
+  };
   documento_identidad?: {
     tipo?: boolean,
     numero?: string
-  },
+  };
   area?: {
     nombre?: string,
     codigo?: string
-  }
-  carnet?: string,
+  };
+  carnet?: string;
   estado_empresa?: {
     fecha_ingreso?: Date,
     fecha_baja?: Date,
     activo?: boolean
-  },
-  nacionalidad?: string,
-  obervacion?: string
+  };
+  nacionalidad?: string;
+  obervacion?: string;
+  comparePassword: (password: string) => Promise<boolean>;
 }
 
 const empleadoSchema = new Schema({
   usuario: Usuario,
-  nombre: String,
-  apellido: String,
-  fecha_nacimiento: Date,
-  cargo: {
+  nombre: {
     type: String,
-    default: 'Cargo no definido.'
+    trim: true,
+    uppercase: true
+  },
+  apellidos: {
+    type: String,
+    trim: true,
+    uppercase: true
+  },
+  fecha_nacimiento: {
+    type: Date,
+    default: Date.now()
   },
   contrata: {
-    nombre: String,
+    nombre: {
+      type: String,
+      default: null
+    },
     slug: {
       type: String,
       default: null
     }
   },
   documento_identidad: {
-    tipo: Boolean,
-    numero: String
-  },
-  area: {
-    nombre: String,
-    codigo: {
+    tipo: {
+      type: Boolean,
+      default: true
+    },
+    numero: {
       type: String,
       default: null
     }
+  },
+  area: {
+    type: String,
+    trim: true,
+    default: 'basicas'
   },
   carnet: {
     type: String,
@@ -64,7 +79,10 @@ const empleadoSchema = new Schema({
   estado_empresa: {
     fecha_ingreso: Date,
     fecha_baja: Date,
-    activo: Boolean
+    activo: {
+      type: Boolean,
+      default: true
+    }
   },
   nacionalidad: {
     type: String,
