@@ -21,10 +21,28 @@ export interface IOrden extends Document {
   contrata_asignada?: {
     nombre_contrata?: string,
     estado?: string,
-    nombre_tecnico?: {
+    tecnico_asignado?: {
       id?: string,
-      nombre?: string
-    }
+      nombre_tecnico?: string,
+      estado_orden?: string,
+      observacion?: string,
+      imagenes?: {
+        titulo?: string,
+        url?: string,
+        public_id?: string
+      },
+      fecha_finalizado?: Date,
+      material_usado?: {
+        material_no_seriado?: {
+          id?: string,
+          cantidad?: number
+        },
+        material_seriado?: {
+          id?: string,
+        }
+      }
+    },
+    observacion?: string
   },
   detalle_registro?: {
     fecha_actualizado?: Date,
@@ -113,46 +131,81 @@ const ordenSchema = new Schema({
       trim: true,
       default: 'Pendiente'
     },
-    nombre_tecnico: {
+    tecnico_asignado: {
       id: {
         type: String,
         trim: true,
         default: null
       },
-      nombre: {
+      nombre_tecnico: {
         type: String,
         trim: true,
         default: 'Sin asignar.'
+      },
+      estado_orden: {
+        type: String,
+        trim: true,
+        default: null
+      },
+      observacion: {
+        type: String,
+        default: '-'
+      },
+      imagenes: [{
+        titulo: String,
+        url: String,
+        public_id: String
+      }],
+      fecha_finalizado: {
+        type: Date,
+        default: null
+      },
+      material_usado: {
+        material_no_seriado: [{
+          id: String,
+          cantidad: {
+            type: Number,
+            default: 0
+          },
+        }],
+        material_seriado: [{
+          id: String,
+        }]
       }
+    },
+    observacion: {
+      type: String,
+      trim: true
     }
   },
   detalle_registro: [{
     fecha_actualizado: {
       type: Date,
-      default: new Date()
+      default: Date.now()
     },
     estado: {
       type: String,
       trim: true,
-      default: null,
+      default: '-',
     },
     contrata: {
       type: String,
       trim: true,
       uppercase: true,
-      default: null,
+      default: '-',
     },
-    usuario: { //nombre + apellido
+    usuario: { //email
       type: String,
       required: true,
-      default: null
+      default: '-'
     },
     tecnico: {//nombre del técnico
       type: String,
+      default: '-'
     },
     observacion: {
       type: String,
-      default: null
+      default: '-'
     },
     imagenes: [{
       titulo: String,

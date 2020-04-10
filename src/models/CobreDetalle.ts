@@ -31,105 +31,130 @@ export interface ICobreDetalle extends Document {
 const CobreDetalle = new Schema({
   numero_inscripcion: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   codigo_mdf: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   codigo_armario: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   cable_primario: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   par_primario: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   cable_secundario: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   par_secundario: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   codigo_terminal: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   codigo_borne: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   detalle_segmento: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   nombre_cliente: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   //DETALLES DE BASICAS
   codigo_area: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   codigo_cabecera: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   cuenta_ubilic: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   ubilic: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   carnet: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   codigo_jefatura: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   nombre_contacto: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   codigo_lic: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   //DETALLES DE SPEEDY
   codigo_estacion: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   descripcion_segmento: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   dslam: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   cable_adsl: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   par_adsl: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
   codigo_posicion: {
     type: String,
-    trim: true
+    trim: true,
+    default: '-'
   },
 }, { 
   _id : false

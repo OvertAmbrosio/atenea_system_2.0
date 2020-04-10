@@ -2,9 +2,178 @@ import { Request, Response } from 'express';
 import Orden, { IOrden } from '../models/Orden';
 import { IEmpleado } from '../models/Empleado';
 
+import obtenerFecha from '../lib/obtenerFecha'
 import logger from '../lib/logger';
+import obtenerFiltros from '../lib/obtenerFiltros';
+import subirImagenes from '../lib/subirImagenes';
 
 const nivelAdmin = [1,2];
+const nivelOperativo = [1,2,3,4];
+
+export const listarOrden = async (req: Request, res: Response): Promise<Response> => {
+  const nivelUsuario: IEmpleado|any = req.user;
+  let status = 404;
+  let respuesta = {title: 'Error en el servidor', status: 'error', ordenes: [], filtros: {}};
+  const fechas = obtenerFecha();
+  if (req.headers.metodo === 'listarOrdenes') {
+    if (nivelAdmin.includes(nivelUsuario.usuario.tipo)) {
+      try {
+        const tipo = req.headers.tipo;
+        
+        await Orden.find({
+            tipo: tipo,
+            $or: [
+              {'estado_sistema.fecha_liquidada': {$gte: fechas.fechaLocal} },
+              {'estado_sistema.fecha_liquidada': null }
+            ]
+          }).then(async(data: any) => {
+            await obtenerFiltros(tipo, data)
+              .then((filtros: Object|any) => {
+                status = 200;
+                respuesta = {
+                  title: "Busqueda Correcta.",
+                  status: 'success',
+                  ordenes: data, 
+                  filtros: filtros
+                }
+              });
+          }).catch((error) => {
+            logger.error({
+              message: error.message,
+              service: 'Listar Ordenes'
+            })
+          })
+      } catch (error) {
+        respuesta.title = 'Error obteniendo valores.';
+        status = 400;
+        logger.error({
+          message: error.message,
+          service: 'Listar Ordenes (try/catch)'
+        })
+      }
+    } else {
+      respuesta.title = 'No tienes permisos suficientes.';
+    }
+  } else if (req.headers.metodo === 'listarOrdenesContrata') {
+    if (nivelOperativo.includes(nivelUsuario.usuario.tipo)) {
+      try {
+        const tipo = req.headers.tipo;
+
+        await Orden.find({
+          tipo: tipo,
+          'contrata_asignada.nombre_contrata': nivelUsuario.contrata.nombre, 
+          $or: [
+            {'estado_sistema.fecha_liquidada': {$gte: fechas.fechaLocal} },
+            {'estado_sistema.fecha_liquidada': null }
+          ]
+        }).then(async(data: any) => {
+          await obtenerFiltros(tipo, data)
+            .then((filtros: Object|any) => {
+              status = 200;
+              respuesta = {
+                title: "Busqueda Correcta.",
+                status: 'success',
+                ordenes: data, 
+                filtros: filtros
+              }
+            });
+        }).catch((error) => {
+          logger.error({
+            message: error.message,
+            service: 'Listar Ordenes por contrata (metodo find)'
+          })
+        })
+      } catch (error) {
+        respuesta.title = 'Error obteniendo valores.';
+        status = 400;
+        logger.error({
+          message: error.message,
+          service: 'Listar Ordenes (try/catch)'
+        })
+      }
+    } else {
+      respuesta.title = 'No tienes permisos suficientes.';
+    }
+  } else if (req.headers.metodo === 'listarLiquidadas') {
+    if (nivelOperativo.includes(nivelUsuario.usuario.tipo)) {
+      try {
+        const tipo = req.headers.tipo;
+        const fechaInicio = req.headers.fechainicio;
+        const fechaFin = req.headers.fechafin;
+
+        await Orden.find({
+          tipo: tipo,
+          'estado_sistema.fecha_liquidada':  {
+            $gte: fechaInicio , 
+            $lt: fechaFin
+          }
+        }).then(async(data: any) => {
+            status = 200;
+            respuesta = {
+              title: `Se encontraron ${data.length} ordenes.`,
+              status: 'success',
+              ordenes: data,
+              filtros: {}
+            }
+        }).catch((error) => {
+          logger.error({
+            message: error.message,
+            service: 'Listar Ordenes por contrata (try/catch)'
+          })
+        })
+      } catch (error) {
+        respuesta.title = 'Error obteniendo valores.';
+        status = 400;
+        logger.error({
+          message: error.message,
+          service: 'Listar Liquidadas (try/catch)'
+        })
+      }
+    } else {
+      respuesta.title = 'No tienes permisos suficientes.';
+    }
+  } else if (req.headers.metodo === 'listarOrden') {
+    if (nivelOperativo.includes(nivelUsuario.usuario.tipo)) {
+      try {
+        const tipo = req.headers.tipo;
+        const codigo = req.headers.codigo; 
+
+        await Orden.find({
+          tipo: tipo,
+          $or: [
+            {codigo_requerimiento: codigo },
+            {telefono: codigo }
+          ]
+        }).then((data: any) => {
+            status = 200;
+            respuesta = {
+              title: `Se encontraron ${data.length} orden/es.`,
+              status: 'success',
+              ordenes: data, 
+              filtros: []
+            }
+        }).catch((error) => {
+            logger.error({
+              message: error.message,
+              service: 'Listar Ordene(metodo find)'
+            })
+        })
+      } catch (error) {
+        respuesta.title = 'Error obteniendo valores.';
+        status = 400;
+        logger.error({
+          message: error.message,
+          service: 'Listar Ordenes (try/catch)'
+        })
+      }
+    } else {
+      respuesta.title = 'No tienes permisos suficientes.';
+    }
+  } else {
+    respuesta.title = 'Metodo incorrecto.';
+  }
+  return res.status(status).send(respuesta);
+}
 
 export const guardarOrden = async (req: Request, res: Response): Promise<Response> => {
   const nivelUsuario: IEmpleado|any = req.user;
@@ -65,10 +234,11 @@ export const guardarOrden = async (req: Request, res: Response): Promise<Respons
 
 export const actualizarOrden = async (req: Request, res: Response): Promise<Response> => {
   const nivelUsuario: IEmpleado|any = req.user;
+  const metodo = req.headers.metodo;
   let status = 404;
   let respuesta = {title: 'Error en el servidor', status: 'error'};
 
-  if (req.headers.metodo === 'actualizarOrdenes') {
+  if (metodo === 'actualizarOrdenes') {
     if (nivelAdmin.includes(nivelUsuario.usuario.tipo)) {
       try {
         const ordenes = req.body;
@@ -101,6 +271,7 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
               servide: `Actualizar Ordenes (${orden.codigo_requerimiento})`
             })
           })
+
         })
         status = 200
         respuesta.title = `${actualizadas} Ordenes actualizadas y ${errores} errores`;
@@ -114,16 +285,131 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
         status = 400;
         logger.error({
           message: error.message,
-          service: 'Guardar Ordenes (try/catch)'
+          service: 'Actualizar Ordenes (try/catch)'
         })
       };
-
+    } else {
+      respuesta = {title: 'No tienes permisos suficientes.', status: 'error'};
+    }
+  } else if (metodo === 'actualizarContrata') {
+    if (nivelAdmin.includes(nivelUsuario.usuario.tipo)) {
+      const {ordenes, contrata} = req.body;
+      try {
+        const detalle_registro = {
+          contrata: contrata,
+          usuario: nivelUsuario.usuario.email,
+          estado: 'Pendiente',
+          observacion: 'Se asigna la orden a la contrata desde el panel administrativo.'
+        };
+        await Orden.updateMany({
+            _id: { $in: ordenes }
+          }, {
+            $set: {'contrata_asignada.nombre_contrata': contrata, 'asignado': true}, 
+            $push: { detalle_registro } 
+          }).then(() => {
+            respuesta = {title: 'Ordenes actualizadas correctamente.', status: 'success'};
+            status = 200;
+          }).catch((error) => {
+            respuesta.title = 'Error actualizando ordenes.'
+            logger.error({
+              message: error.message,
+              service: 'Error asignando las ordenes a la contrata.'
+            })
+          })
+      } catch (error) {
+        respuesta.title = 'Error obteniendo valores.';
+        status = 400;
+        logger.error({
+          message: error.message,
+          service: 'Actualizar contrata por orden (try/catch)'
+        })
+      };
+    } else {
+      respuesta = {title: 'No tienes permisos suficientes.', status: 'error'};
+    }
+  } else if (metodo === 'actualizarEstado') {
+    if (nivelOperativo.includes(nivelUsuario.usuario.tipo)) {
+      const {ordenes, estado, observacion } = req.body;
+      const files: any = req.files;
+      //funcion para subir imagenes a cloudinary, si no hay imagenes devolverá vacio
+      await subirImagenes(files)
+        .then(async(imagenes) => {
+          //asignar las imagenes al registro
+          let detalle_registro = {
+            estado: estado,         
+            usuario: nivelUsuario.usuario.email,
+            contrata: nivelUsuario.contrata.nombre,
+            observacion: `${observacion} (actualizado a "${estado}")`,
+            imagenes: imagenes
+          };
+          //convertir el formdata(text) en array
+          let arrayOrden = ordenes.split(",").map(String);
+          //guardar los cambios en la base de datos
+          await Orden.updateMany({
+            _id: { $in: arrayOrden}
+          }, {
+            $set: { 'contrata_asignada.estado' : estado, 'contrata_asignada.observacion' :  observacion},
+            $push: { detalle_registro },
+          }).then((e) => {
+            if (ordenes.length > 1) {
+              status = 200;
+              respuesta = {title: 'Ordenes actualizadas correctamente.', status: 'success'};
+            } else {
+              status = 200;
+              respuesta = {title: 'Orden actualizada correctamente.', status: 'success'};
+            }
+          }).catch((err) => {
+            logger.error({
+              message: err.message,
+              service: 'Actualizar estado de la orden'
+            });
+            respuesta.title = 'Error actualizando ordenes';
+          })
+        }).catch((error) => {
+          logger.error({
+            message: error.message,
+            service: 'Actualizar estado de la orden (subiendo imagenes)'
+          });
+          respuesta.title = 'Error actualizando ordenes';
+        })
+    } else {
+      respuesta = {title: 'No tienes permisos suficientes.', status: 'error'};
+    }
+  } else if (metodo === 'actualizarTecnico') {
+    if (nivelOperativo.includes(nivelUsuario.usuario.tipo)) {
+      const {ordenes, idTecnico, nombreTecnico } = req.body;
+      const detalle_registro = {
+        estado: 'Asignada',
+        usuario: nivelUsuario.usuario.email,
+        contrata: nivelUsuario.contrata.nombre,
+        tecnico: nombreTecnico,
+        observacion: `Se asigna la orden al técnico ${nombreTecnico}.`
+      }
+      await Orden.updateMany({
+        _id: { $in: ordenes}}, {
+        $set: { 
+          'contrata_asignada.tecnico_asignado.id':  idTecnico, 
+          'contrata_asignada.tecnico_asignado.nombre_tecnico':  nombreTecnico, 
+          'contrata_asignada.tecnico_asignado.estado_orden':  1,
+          'contrata_asignada.estado': 'Asignada'},
+        $push: { detalle_registro} }, {
+        new: true
+      }).then((e) => {
+        console.log(e);
+        status = 200,
+        respuesta = {title: `Ordenes asignadas: ${e.nModified}.`, status: 'success'}
+      }).catch((error) => {
+        logger.error({
+          message: error.message,
+          service: 'Asignar técnico.'
+        });
+        respuesta.title = "Error actualizando las ordenes"
+      })
     } else {
       respuesta = {title: 'No tienes permisos suficientes.', status: 'error'};
     }
   } else {
     respuesta = {title: 'Metodo incorrecto.', status: 'error'};
   }
-
   return res.status(status).send(respuesta);
 }

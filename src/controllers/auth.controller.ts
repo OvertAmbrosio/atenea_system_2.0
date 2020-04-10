@@ -52,8 +52,8 @@ export const session = async (req: Request, res: Response): Promise<Response> =>
           respuesta = {title: 'No hay sesión', status: 'error', sesion: false};
         }
     }).catch((error) => {
-        logger.error({message: 'Error verificando la sesion - ' + error.message});
-        respuesta = {title: error.message, status: 'error', sesion: false};
+        logger.error({message: 'Error verificando la sesion - ' + error.message + '-' + error.code});
+        respuesta = {title: error.message, status: 'warning', sesion: false};
     });
   };
 
@@ -66,8 +66,8 @@ export const cerrarSesion = async (req: Request, res: Response): Promise<Respons
   let respuesta = {title: '', status:''};
   if (token) {
     try {
-      const {usuario} = decifrarToken(token);
-      await Session.deleteOne({ _id: usuario.idSesion})
+      const {usuarioDecoded} = decifrarToken(token);
+      await Session.deleteOne({ _id: usuarioDecoded.idSesion})
         .then((s) => {
           respuesta = ({title: 'Sesion cerrada correctamente', status: 'success'})
       }).catch((error) => {

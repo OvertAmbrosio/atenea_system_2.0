@@ -2,11 +2,11 @@ import { Router } from 'express';
 
 const router:Router = Router();
 
-import { guardarOrden, actualizarOrden } from '../controllers/ordenes.controller';
+import { listarOrden, guardarOrden, actualizarOrden } from '../controllers/ordenes.controller';
 
-// router.get('', listarContratas)
-router      .post('', guardarOrden)
-            .patch('', actualizarOrden)
+router.get('', listarOrden)
+      .post('', guardarOrden)
+      .patch('', actualizarOrden)
       // .put('', actualizarContrata)
       // .delete('', borrarContrata);
 

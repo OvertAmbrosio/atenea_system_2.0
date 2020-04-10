@@ -7,7 +7,7 @@ import logger from '../lib/logger';
 
 export const listarEmpleados = async (req: Request, res: Response ) => {
   const nivelUsuario: IEmpleado|any = req.user;
-  const nivelPermitido = [1,2,3];
+  const nivelPermitido = [1,2];
 
   if (req.headers.metodo === 'listarUsuarios') {
     if (nivelUsuario.usuario.tipo === 1) {
@@ -52,7 +52,22 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
     } else {
       return res.status(401).send("Usuario sin permisos");
     }
-  }else {
+  } else if (req.headers.metodo === 'listarTecnicos') {
+    await Empleado.find({'contrata.slug': nivelUsuario.contrata.slug, 'usuario.tipo': 5, 'estado_empresa.activo': true})
+      .select({
+        nombre: 1, apellidos: 1
+    }).sort({
+      apellidos: 1
+    }).then((empleados) => {
+        return res.status(201).json(empleados);
+    }).catch((error) => {
+        logger.error({
+          message: error.message,
+          service: 'Listar técnicos de la contrata.'
+        })
+        return res.status(400).send('Error obteniendo la lista de tecnicos');
+    })
+  } else {
     return res.send('¿Estás Perdido?')
   }
   
