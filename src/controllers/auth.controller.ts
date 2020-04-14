@@ -53,7 +53,7 @@ export const session = async (req: Request, res: Response): Promise<Response> =>
         }
     }).catch((error) => {
         logger.error({message: 'Error verificando la sesion - ' + error.message + '-' + error.code});
-        respuesta = {title: error.message, status: 'warning', sesion: false};
+        respuesta = {title: error.message, status: 'error', sesion: false};
     });
   };
 
@@ -61,7 +61,6 @@ export const session = async (req: Request, res: Response): Promise<Response> =>
 };
 
 export const cerrarSesion = async (req: Request, res: Response): Promise<Response> => {
-  
   const token = req.headers.authorization;
   let respuesta = {title: '', status:''};
   if (token) {
@@ -90,9 +89,9 @@ export const configuraciones = async (req: Request, res: Response): Promise<Resp
   const superior = [1,2];
   try {
     const {id, email} =  req.body
-    const { usuario } = decifrarToken(req.headers.authorization);
+    const { usuarioDecoded } = decifrarToken(req.headers.authorization);
     if (req.headers.metodo === 'reiniciarPassword') {
-      if (todos.includes(usuario.tipo)) {
+      if (todos.includes(usuarioDecoded.tipo)) {
         const response = await reiniciarPassword(id);
         if (response) {
           respuesta = {title: 'Contraseña modificada correctamente.', status: 'success'}
@@ -103,7 +102,7 @@ export const configuraciones = async (req: Request, res: Response): Promise<Resp
         respuesta.title = 'No tienes permisos suficientes.'
       }
     } else if (req.headers.metodo === 'cerrarSesion') {
-      if (superior.includes(usuario.tipo)) {
+      if (superior.includes(usuarioDecoded.tipo)) {
         await Session.findOneAndDelete({email: email})
         .then(() => respuesta = {title: 'Sesión cerrada correctamente.', status: 'success'})
         .catch((error) => {
@@ -114,7 +113,7 @@ export const configuraciones = async (req: Request, res: Response): Promise<Resp
         respuesta.title = 'No tienes permisos suficientes.'
       }
     } else if (req.headers.metodo === 'desactivarCuenta') {
-      if (superior.includes(usuario.tipo)) {
+      if (superior.includes(usuarioDecoded.tipo)) {
         await Empleado.findByIdAndUpdate({_id: id}, { $set: { 'usuario.estado': false }})
         .then(() => respuesta = {title: 'Usuario desactivado.', status: 'warning'})
         .catch((error) => {
@@ -126,7 +125,7 @@ export const configuraciones = async (req: Request, res: Response): Promise<Resp
       }
     } else if (req.headers.metodo === 'actualizarPermisos') {
       const {id, permiso} = req.body.id
-      if (superior.includes(usuario.tipo) && permiso !== 1) {
+      if (superior.includes(usuarioDecoded.tipo) && permiso !== 1) {
         await Empleado.findByIdAndUpdate({_id: id}, { $set: { 'usuario.tipo': permiso }})
         .then(() => respuesta = {title: 'Usuario actualizado.', status: 'success'})
         .catch((error) => {

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { IEmpleado } from '../models/Empleado';
-import Contrata, { IContrata } from '../models/Contrata';
+import Contrata from '../models/Contrata';
 import logger from '../lib/logger';
 
 export const listarContratas = async (req: Request, res: Response ) => {

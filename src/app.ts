@@ -1,16 +1,13 @@
 import express from 'express';
+import helmet from 'helmet';
+import favicon from 'serve-favicon'
 import morgan from 'morgan';
 import compression from 'compression';
 import cors from 'cors';
 import multer from 'multer';
-import serveStatic from 'serve-static';
 import path from 'path'
 import passport from 'passport';
 import passportMiddleware from './middlewares/passport';
-
-const url_base = path.join(__dirname, 'public');
-const atenea_system = path.join(__dirname, 'public/atenea-system');
-
 //importar rutas
 import authRoutes from './routes/auth.routes';
 import empleadosRoutes from './routes/empleados.routes';
@@ -26,13 +23,24 @@ const storage = multer.diskStorage({
 
 //inicializaciones
 const app = express();
-app.use('/', serveStatic(url_base));
-app.use('/atenea-system/', serveStatic(atenea_system));
-
-//configuraciones
-app.set('port', process.env.port || 4000);
-app.use(compression());
-
+app.get('/', function(req, res) {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+app.disable('x-powered-by');
+app.use(helmet());
+app.use(helmet.featurePolicy({
+  features: {
+    fullscreen: ["'self'"],
+    vibrate: ["'none'"],
+    syncXhr: ["'none'"]
+  }
+}));
+app.use(helmet.referrerPolicy({
+  policy: 'same-origin'
+}));
+app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
+app.set('port', process.env.PORT || 4000);
+app.use(compression( { level: 9 } ));
 //middlewares
 app.use(morgan('dev'));
 app.use(cors());
