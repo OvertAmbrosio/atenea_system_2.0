@@ -6,7 +6,7 @@ import logger from '../lib/logger';
 export const listarContratas = async (req: Request, res: Response ) => {
   const nivelUsuario: IEmpleado|any = req.user
   if (req.headers.metodo === 'todoContratas') {
-    if (nivelUsuario.usuario.tipo === 1) {
+    if (nivelUsuario.usuario.tipo <= 3) {
       await Contrata.find().sort('nombre')
         .then((contratas) => {
           return res.status(201).send(contratas)
@@ -18,6 +18,8 @@ export const listarContratas = async (req: Request, res: Response ) => {
           });
           return res.status(404).send({title: 'Error buscando las contratas.', message: error.message});
       })
+    } else {
+      return res.status(404).send([])
     }
   } else if (req.headers.metodo === 'listaContratas') {
     await Contrata.find().sort('nombre').select({nombre: 1, _id: 0})

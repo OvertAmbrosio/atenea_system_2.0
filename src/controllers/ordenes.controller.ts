@@ -1,4 +1,6 @@
 import { Request, Response } from 'express';
+import moment from 'moment';
+import timezone from 'moment-timezone'
 import Orden, { IOrden } from '../models/Orden';
 import { IEmpleado } from '../models/Empleado';
 
@@ -7,8 +9,14 @@ import logger from '../lib/logger';
 import obtenerFiltros from '../lib/obtenerFiltros';
 import subirImagenes from '../lib/subirImagenes';
 
-const nivelAdmin = [1,2];
-const nivelOperativo = [1,2,3,4];
+const nivelAdmin = [1,2,4];
+const nivelOperativo = [1,2,4,6,7];
+//nivel 1 es administrador -> todo
+//nivel 2 es Jefe de Operaciones -> Todo Operaciones / usuario
+//nivel 4 es Lider de Gestión -> Todo Operaciones / parte de usuario
+//nivel 6 es jefe de contrata/ (encargado de la logistica en la contrata)
+//nivel 7 es gestor
+//Nivel 9 es técnico
 
 export const listarOrden = async (req: Request, res: Response): Promise<Response> => {
   const nivelUsuario: IEmpleado|any = req.user;
@@ -18,12 +26,12 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
   if (req.headers.metodo === 'listarOrdenes') {
     if (nivelAdmin.includes(nivelUsuario.usuario.tipo)) {
       try {
-        const tipo = req.headers.tipo;
+        const tipo = req.headers.tipo;      
         
         await Orden.find({
             tipo: tipo,
             $or: [
-              {'estado_sistema.fecha_liquidada': {$gte: fechas.fechaLocal} },
+              {'estado_sistema.fecha_liquidada': {$gte: fechas.fechaHoraLocal} },
               {'estado_sistema.fecha_liquidada': null }
             ]
           }).then(async(data: any) => {
@@ -63,7 +71,7 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
           tipo: tipo,
           'contrata_asignada.nombre_contrata': nivelUsuario.contrata.nombre, 
           $or: [
-            {'estado_sistema.fecha_liquidada': {$gte: fechas.fechaLocal} },
+            {'estado_sistema.fecha_liquidada': {$gte: fechas.fechaHoraLocal} },
             {'estado_sistema.fecha_liquidada': null }
           ]
         }).then(async(data: any) => {
@@ -95,7 +103,7 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
       respuesta.title = 'No tienes permisos suficientes.';
     }
   } else if (req.headers.metodo === 'listarLiquidadas') {
-    if (nivelOperativo.includes(nivelUsuario.usuario.tipo)) {
+    if (nivelAdmin.includes(nivelUsuario.usuario.tipo)) {
       try {
         const tipo = req.headers.tipo;
         const fechaInicio = req.headers.fechainicio;
@@ -104,8 +112,8 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
         await Orden.find({
           tipo: tipo,
           'estado_sistema.fecha_liquidada':  {
-            $gte: fechaInicio , 
-            $lt: fechaFin
+            $gte: moment(fechaInicio).add(5, 'hours').format('YYYY-MM-DD hh:mm') , 
+            $lt: moment(fechaFin).add(5, 'hours').format('YYYY-MM-DD hh:mm')
           }
         }).then(async(data: any) => {
             status = 200;
@@ -249,37 +257,43 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
           usuario: nivelUsuario.usuario.email,
           observacion: 'Se actualiza la orden a liquidado desde el panel administrativo.'
         };
-        await ordenes.map(async function (orden: IOrden | any) {
-          await Orden.updateOne({
+        await Promise.all(ordenes.map(async function (orden: IOrden | any) {
+          return await Orden.updateOne({
             codigo_requerimiento: orden.codigo_requerimiento, 
             'estado_sistema.estado': { $ne: 'LIQUIDADA'}
-          }, {
-            $set: {
-              'estado_sistema.estado': orden.estado, 
-              'estado_sistema.fecha_liquidada': orden.fecha_liquidada, 
-              'estado_sistema.observacion': orden.observacion,
-              'asignado': true, 
-            },
-            $push: { detalle_registro },
-            new: true
-          }).then((o) => {
-            if(o.nModified !== 0) ++actualizadas
-          }).catch((error) => {
-            ++errores
-            logger.error({
-              message: error.message,
-              servide: `Actualizar Ordenes (${orden.codigo_requerimiento})`
+            }, {
+              $set: {
+                'estado_sistema.estado': orden.estado, 
+                'estado_sistema.fecha_liquidada': orden.fecha_liquidada, 
+                'estado_sistema.observacion': orden.observacion,
+                'asignado': true, 
+              },
+              $push: { detalle_registro },
+              new: true
+            }).then((o) => {
+              if(o.nModified !== 0) {
+                ++actualizadas;
+              }
+              return o.nModified;
+            }).catch((error) => {
+              logger.error({
+                message: error.message,
+                servide: `Actualizar Ordenes (${orden.codigo_requerimiento})`
+              })
+              return ++errores
             })
           })
-
+        ).then((a) => {
+          status = 200
+          respuesta.title = `${actualizadas} Ordenes actualizadas y ${errores} errores`;
+          if (errores !== 0) {
+            respuesta.status = 'warning'
+          } else {
+            respuesta.status = 'success';
+          }
+        }).catch((error) => {
+          console.log(error);
         })
-        status = 200
-        respuesta.title = `${actualizadas} Ordenes actualizadas y ${errores} errores`;
-        if (errores !== 0) {
-          respuesta.status = 'warning'
-        } else {
-          respuesta.status = 'success';
-        }
       } catch (error) {
         respuesta.title = 'Error obteniendo valores.';
         status = 400;

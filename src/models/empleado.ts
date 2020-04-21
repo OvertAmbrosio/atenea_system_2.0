@@ -86,6 +86,8 @@ const empleadoSchema = new Schema({
   },
   nacionalidad: {
     type: String,
+    trim: true,
+    uppercase: true,
     default: 'PERUANA'
   },
   observacion: {

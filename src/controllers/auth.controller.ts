@@ -85,8 +85,9 @@ export const cerrarSesion = async (req: Request, res: Response): Promise<Respons
 
 export const configuraciones = async (req: Request, res: Response): Promise<Response> => {
   let respuesta = {title: 'Error en el servidor', status:'error'};
-  const todos = [1,2,3];
-  const superior = [1,2];
+  const todos = [1,2,3,4,6];
+  const superior = [1,2,3,4];
+  const admin = [1,2,3];
   try {
     const {id, email} =  req.body
     const { usuarioDecoded } = decifrarToken(req.headers.authorization);
@@ -102,7 +103,7 @@ export const configuraciones = async (req: Request, res: Response): Promise<Resp
         respuesta.title = 'No tienes permisos suficientes.'
       }
     } else if (req.headers.metodo === 'cerrarSesion') {
-      if (superior.includes(usuarioDecoded.tipo)) {
+      if (todos.includes(usuarioDecoded.tipo)) {
         await Session.findOneAndDelete({email: email})
         .then(() => respuesta = {title: 'Sesión cerrada correctamente.', status: 'success'})
         .catch((error) => {
@@ -113,25 +114,39 @@ export const configuraciones = async (req: Request, res: Response): Promise<Resp
         respuesta.title = 'No tienes permisos suficientes.'
       }
     } else if (req.headers.metodo === 'desactivarCuenta') {
-      if (superior.includes(usuarioDecoded.tipo)) {
-        await Empleado.findByIdAndUpdate({_id: id}, { $set: { 'usuario.estado': false }})
-        .then(() => respuesta = {title: 'Usuario desactivado.', status: 'warning'})
-        .catch((error) => {
-          respuesta.title = 'Error modificando el usuario';
-          logger.error({message: error.message, service: 'Modificando usuario en configuraciones'})
-        })
+      if (admin.includes(usuarioDecoded.tipo)) {
+        const {estado} = req.body
+        await Empleado.findByIdAndUpdate({_id: id}, { $set: { 'usuario.estado': !estado }})
+          .then(() => {
+            logger.info({
+              message: `${usuarioDecoded.email} desactivó la cuenta de ${id}`,
+              service: 'Desactivar cuenta.'
+            })
+            respuesta = {
+              title: `Usuario ${estado ? 'desactivado' : 'activado'}.`, 
+              status: `${estado ? 'warning' : 'success'}`
+            };
+          }).catch((error) => {
+            respuesta.title = 'Error modificando el usuario';
+            logger.error({message: error.message, service: 'Modificando usuario en configuraciones'})
+          })
       } else {
         respuesta.title = 'No tienes permisos suficientes.'
       }
     } else if (req.headers.metodo === 'actualizarPermisos') {
       const {id, permiso} = req.body.id
-      if (superior.includes(usuarioDecoded.tipo) && permiso !== 1) {
+      if (admin.includes(usuarioDecoded.tipo) && permiso !== 1) {
         await Empleado.findByIdAndUpdate({_id: id}, { $set: { 'usuario.tipo': permiso }})
-        .then(() => respuesta = {title: 'Usuario actualizado.', status: 'success'})
-        .catch((error) => {
-          respuesta.title = 'Error modificando el usuario';
-          logger.error({message: error.message, service: 'Modificando usuario en configuraciones(actualizar permisos)'})
-        })
+          .then(() => {
+            logger.info({
+              message: `${usuarioDecoded.email} le dio permiso de nivel ${permiso} a la cuenta de ${id}`,
+              service: 'Actualizar Permisos.'
+            })
+            respuesta = {title: 'Usuario actualizado.', status: 'success'}
+          }).catch((error) => {
+            respuesta.title = 'Error modificando el usuario';
+            logger.error({message: error.message, service: 'Modificando usuario en configuraciones(actualizar permisos)'})
+          })
       } else {
         respuesta.title = 'No tienes permisos suficientes.'
       }

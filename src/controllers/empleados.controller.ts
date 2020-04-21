@@ -1,17 +1,42 @@
 import { Request, Response } from 'express';
 import slugify from 'slugify';
+import bcrypt from 'bcrypt';
 import Empleado, { IEmpleado } from '../models/Empleado';
 
 import { ValidarRegistro } from '../validations';
 import logger from '../lib/logger';
 
+const nivelJefes = [2,3,4];
+const nivelAdministrativo = [1,2,3,4];
+
 export const listarEmpleados = async (req: Request, res: Response ) => {
   const nivelUsuario: IEmpleado|any = req.user;
-  const nivelPermitido = [1,2];
-
+  const tipoUsuario: Number|any = nivelUsuario.usuario.tipo;
   if (req.headers.metodo === 'listarUsuarios') {
-    if (nivelUsuario.usuario.tipo === 1) {
+    if (tipoUsuario === 1) {
       await Empleado.find().select('usuario nombre apellidos').sort({"usuario.tipo": -1})
+        .then((usuarios) => {
+          return res.status(201).json(usuarios);
+      }).catch((error) => {
+          logger.error({
+            message: error.message,
+            service: 'Lista usuarios'
+          })
+          return res.status(400).send('Error obteniendo la lista de usuario');
+      })
+    } else if (nivelJefes.includes(tipoUsuario)){
+      await Empleado.find({"usuario.tipo": { $gt: tipoUsuario}}).select('usuario nombre apellidos').sort({"usuario.tipo": -1})
+        .then((usuarios) => {
+          return res.status(201).json(usuarios);
+      }).catch((error) => {
+          logger.error({
+            message: error.message,
+            service: 'Lista usuarios'
+          })
+          return res.status(400).send('Error obteniendo la lista de usuario');
+      })
+    } else if (tipoUsuario === 6) {
+      await Empleado.find({"usuario.tipo": { $gt: tipoUsuario}, "contrata.nombre": nivelUsuario.contrata.nombre}).select('usuario nombre apellidos').sort({"usuario.tipo": -1})
         .then((usuarios) => {
           return res.status(201).json(usuarios);
       }).catch((error) => {
@@ -24,16 +49,26 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
     } else {
       return res.status(401).send("Usuario sin permisos");
     }
+  } else if (req.headers.metodo === 'listarUsuario') {
+    await Empleado.findById({_id: nivelUsuario._id})
+      .then((usuario) => {
+        return res.status(201).json(usuario);
+      }).catch((error) => {
+        logger.error({
+          message: error.message,
+          service: 'Buscar Usuario para el perfil'
+        })
+        return res.status(400).send('Error obteniendo usuario');
+      })
   } else if (req.headers.metodo === 'listarEmpleados'){
-    if (nivelPermitido.includes(nivelUsuario.usuario.tipo)) {
-      await Empleado.find().sort({'usuario.tipo' : 'descending'})
+    if (nivelAdministrativo.includes(tipoUsuario)) {
+      await Empleado.find({'usuario.tipo': {$gt: tipoUsuario === 1 ? 0 : tipoUsuario}}).sort({'usuario.tipo' : 'descending'})
         .select({
           'usuario.password': 0, 
           'usuario.imagen_perfil': 0,
           'usuario.estado': 0,
           createdAt: 0,
-      })
-        .then((usuarios) => {
+      }).then((usuarios) => {
           let dataUsuarios = usuarios.map((usuario:any, i) => ({
             ...usuario._doc,
             email: usuario.usuario.email,
@@ -49,11 +84,37 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
         })
         return res.status(400).send('Error obteniendo la lista de usuario');
       })
+    } else if (tipoUsuario === 6){
+      await Empleado.find({
+          'usuario.tipo': {$gt: tipoUsuario}, 
+          "contrata.nombre": nivelUsuario.contrata.nombre
+        }).sort({'usuario.tipo' : 'descending'
+        }).select({
+            'usuario.password': 0, 
+            'usuario.imagen_perfil': 0,
+            'usuario.estado': 0,
+            createdAt: 0,
+        }).then((usuarios) => {
+            let dataUsuarios = usuarios.map((usuario:any, i) => ({
+              ...usuario._doc,
+              email: usuario.usuario.email,
+              tipo_documento: usuario.documento_identidad.tipo,
+              numero_documento: usuario.documento_identidad.numero,
+              contrata_nombre: usuario.contrata.nombre
+            }));
+            return res.status(201).json(dataUsuarios);
+        }).catch((error) => {
+          logger.error({
+            message: error.message,
+            service: 'Lista empleados'
+          })
+          return res.status(400).send('Error obteniendo la lista de usuario');
+        })
     } else {
       return res.status(401).send("Usuario sin permisos");
     }
   } else if (req.headers.metodo === 'listarTecnicos') {
-    await Empleado.find({'contrata.slug': nivelUsuario.contrata.slug, 'usuario.tipo': 5, 'estado_empresa.activo': true})
+    await Empleado.find({'contrata.nombre': nivelUsuario.contrata.nombre, 'usuario.tipo': 9, 'estado_empresa.activo': true})
       .select({
         nombre: 1, apellidos: 1
     }).sort({
@@ -79,9 +140,8 @@ export const crearEmpleado = async (req: Request, res: Response): Promise<Respon
 
   if (req.headers.metodo === 'crearEmpleado') {
     const nivelUsuario: IEmpleado|any = req.user;
-    const nivelPermitido = [1,2];
 
-    if (nivelPermitido.includes(nivelUsuario.usuario.tipo)) {
+    if (nivelAdministrativo.includes(nivelUsuario.usuario.tipo)) {
       const { errors, isValid } = await ValidarRegistro(req.body);
       if (!isValid) return res.status(400).json(errors);
 
@@ -125,16 +185,15 @@ export const crearEmpleado = async (req: Request, res: Response): Promise<Respon
 }
 
 export const actualizarEmpleado = async (req: Request, res: Response): Promise<Response> => {
-  let status = 0;
+  let status = 404;
   let respuesta = {title: '', status: ''}
   const nivelUsuario: IEmpleado|any = req.user;
-  
+  const tipoUser: Number|any = nivelUsuario.usuario.tipo
   if (req.headers.metodo === 'actualizarEmpleado') {
     const {
       nombre, apellidos, email, contrata_nombre, tipo_documento, numero_documento,area , carnet, nacionalidad, observacion
     } = req.body.row;
-
-    if (nivelUsuario.usuario.tipo < 3) {
+    if (tipoUser < 5) {
       await Empleado.findByIdAndUpdate({_id: req.body.key}, {
         nombre,
         apellidos,
@@ -167,7 +226,7 @@ export const actualizarEmpleado = async (req: Request, res: Response): Promise<R
         respuesta = {title: 'Error actualizando el empleado.', status: 'error'}
         status = 400
       })
-    } else if(nivelUsuario.usuario.tipo === 3){
+    } else if(nivelUsuario.usuario.tipo === 6){
       await Empleado.findByIdAndUpdate({_id: req.body.key}, {
         nombre,
         apellidos,
@@ -201,7 +260,7 @@ export const actualizarEmpleado = async (req: Request, res: Response): Promise<R
       status = 404
     }
   } else if(req.headers.metodo === 'actualizarFechas'){
-    if (nivelUsuario.usuario.tipo < 3) {
+    if (nivelUsuario.usuario.tipo < 5) {
       if (req.body.activo === true) {
         const {fecha_nacimiento, fecha_ingreso, activo} = req.body
         await Empleado.findByIdAndUpdate({_id: req.body.id}, {
@@ -254,10 +313,71 @@ export const actualizarEmpleado = async (req: Request, res: Response): Promise<R
       respuesta = {title: 'No tienes los permisos para realizar esa acción.', status: 'warning'}
       status = 200
     }    
-  }else {
+  } else if(req.headers.metodo === 'editarPerfil'){
+    const { 
+      nombre, apellidos, email, fecha_nacimiento, carnet, documento_identidad, nacionalidad, imagen_perfil
+    } = req.body;
+    await Empleado.findByIdAndUpdate({_id: nivelUsuario._id}, {
+        $set: {
+          nombre, apellidos,
+          'usuario.email': email,
+          fecha_nacimiento, carnet, documento_identidad, nacionalidad,
+          'usuario.imagen_perfil': imagen_perfil
+        }
+      }).then(() => {
+        status = 201
+        respuesta = {title: 'Usuario actualizado correctamente.', status: 'success'}
+      }).catch((error) => {
+        logger.error({message: error.message, service: 'Editando perfil.'});
+        respuesta = {title: 'Error actualizando el usuario.', status: 'error'};
+      })
+  } else {
     respuesta = {title: 'Metodo incorrecto', status: 'error'}
     status = 404
   }
 
   return res.status(status).send(respuesta);
+}
+
+export const cambiarPassword = async (req: Request, res: Response): Promise<Response> => {
+  let status = 404;
+  let respuesta = {title: 'Error en el servidor.', status: 'error'}
+  const nivelUsuario: IEmpleado|any = req.user;
+  if (req.headers.metodo === 'cambiarPassword') {
+    try {
+      const { password_actual, password_new, password_new2} = req.body
+      const match = await nivelUsuario.comparePassword(password_actual);
+      if (match) {
+        if (password_new !== password_new2) {
+          status = 301;
+          respuesta.title = 'Las contraseñas no coinciden.';
+        } else {
+          const salt = await bcrypt.genSalt(10);
+          const hash = await bcrypt.hash(password_new, salt);
+          let newPassword = hash;
+          await Empleado.findByIdAndUpdate({_id: nivelUsuario._id}, {$set: {'usuario.password': newPassword }})
+            .then(() => {
+              status = 200
+              respuesta = {title: 'Contraseña cambiada correctamente.', status: 'success'};
+            }).catch((error) => {
+              respuesta.title = 'Error actualizando contraseña.'
+              logger.error({
+                message: error.message,
+                service: 'Cambiar Contraseña (findById)'
+              });
+            })
+        }
+      } else {
+        status = 301
+        respuesta.title = 'Contraseña incorrecta.'
+      }
+    } catch (error) {
+      logger.error({
+        message: error.message,
+        service: 'Cambiar Contraseña (try/catch)'
+      });
+    }
+  }
+  
+  return res.status(status).send(respuesta)
 }
