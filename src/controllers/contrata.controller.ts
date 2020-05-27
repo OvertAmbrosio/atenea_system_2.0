@@ -22,7 +22,7 @@ export const listarContratas = async (req: Request, res: Response ) => {
       return res.status(404).send([])
     }
   } else if (req.headers.metodo === 'listaContratas') {
-    await Contrata.find().sort('nombre').select({nombre: 1, _id: 0})
+    await Contrata.find({activo: true}).sort('nombre').select({nombre: 1})
         .then((contratas) => {
           return res.status(201).send(contratas)
       }).catch((error) => {
@@ -103,11 +103,11 @@ export const borrarContrata = async (req: Request, res: Response) => {
   if (req.headers.metodo === 'borrarContrata') {
     try {
       if(!req.body.id) return res.send({title: 'Se necesita el id de la contrata.', status: 'error'});
-      const { id } = req.body;
-      await Contrata.findByIdAndDelete({_id: id})
+      const { id, activo } = req.body;
+      await Contrata.findByIdAndUpdate({_id: id}, {activo: !activo})
         .then(() => {
-          logger.log({level: 'info', message: 'Contrata eliminada - ' + id + ' - '+ nivelUsuario.usuario.email})
-          return res.send({title: 'Contrata eliminada correctamente.', status: 'success'});
+          logger.log({level: 'info', message: `Contrata ${activo ? 'desactivada' : 'activada'} - ${id} - ${nivelUsuario.usuario.email}`})
+          return res.send({title: `Contrata ${activo ? 'desactivada' : 'activada'} correctamente.`, status: 'success'});
       }).catch((error) => {
           logger.log({
             level: 'error',

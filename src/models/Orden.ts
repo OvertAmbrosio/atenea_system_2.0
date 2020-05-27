@@ -44,7 +44,7 @@ export interface IOrden extends Document {
     },
     observacion?: string
   },
-  detalle_registro?: {
+  detalle_registro?: [{
     fecha_actualizado?: Date,
     estado?: string,
     contrata?: string
@@ -56,7 +56,7 @@ export interface IOrden extends Document {
       url?: string,
       public_id?: string
     }
-  }
+  }]
 };
 
 const ordenSchema = new Schema({
@@ -181,7 +181,7 @@ const ordenSchema = new Schema({
   detalle_registro: [{
     fecha_actualizado: {
       type: Date,
-      default: Date.now()
+      default: new Date()
     },
     estado: {
       type: String,

@@ -4,7 +4,8 @@ export interface IContrata extends Document {
   nombre: string;
   ruc?: string,
   descripcion?: string,
-  fecha_incorporacion?: Date
+  fecha_incorporacion?: Date,
+  activo?: boolean
 }
 
 const contrataSchema = new Schema({
@@ -24,6 +25,10 @@ const contrataSchema = new Schema({
   fecha_incorporacion: {
     type: Date,
     trim: true
+  },
+  activo: {
+    type: Boolean,
+    default: true
   }
 },
 {

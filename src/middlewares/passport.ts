@@ -10,7 +10,7 @@ const opts: StrategyOptions = {
 
 export default new Strategy(opts, async (payload, done) => {
   try {
-    await Empleado.findById(payload.id)
+    await Empleado.findById(payload.id).populate('contrata')
       .then((usuario) => {
         return done(null, usuario)
     }).catch((error) => {

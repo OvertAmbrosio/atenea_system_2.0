@@ -21,7 +21,7 @@ interface IResponse {
 
 const uploader = async (path: string) => await cloudinaryUploader(path, 'Ordenes');
 
-export default async function subirImagenes(files: Array<IFile|any>) {
+export default async function subirImagenes(files: Array<IFile|any>): Promise<Array<IResponse>|any> {
   
   let imagenesSubidas: Array<IResponse> = [];
 
@@ -45,11 +45,11 @@ export default async function subirImagenes(files: Array<IFile|any>) {
               });
           })
         ).then((resultado) => {
-          resolve(imagenesSubidas);
+          return resolve(imagenesSubidas);
         });
       };
     } catch (error) {
-      reject(error);
+      return reject(error);
     };
   });
 }

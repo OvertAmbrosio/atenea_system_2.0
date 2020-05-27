@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import moment from 'moment';
-import timezone from 'moment-timezone'
 import Orden, { IOrden } from '../models/Orden';
 import { IEmpleado } from '../models/Empleado';
 
@@ -8,6 +7,7 @@ import obtenerFecha from '../lib/obtenerFecha'
 import logger from '../lib/logger';
 import obtenerFiltros from '../lib/obtenerFiltros';
 import subirImagenes from '../lib/subirImagenes';
+import { Error } from 'mongoose';
 
 const nivelAdmin = [1,2,4];
 const nivelOperativo = [1,2,4,6,7];
@@ -26,7 +26,7 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
   if (req.headers.metodo === 'listarOrdenes') {
     if (nivelAdmin.includes(nivelUsuario.usuario.tipo)) {
       try {
-        const tipo = req.headers.tipo;      
+        const tipo: string|any = req.headers.tipo;      
         
         await Orden.find({
             tipo: tipo,
@@ -45,7 +45,7 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
                   filtros: filtros
                 }
               });
-          }).catch((error) => {
+          }).catch((error:Error) => {
             logger.error({
               message: error.message,
               service: 'Listar Ordenes'
@@ -65,8 +65,8 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
   } else if (req.headers.metodo === 'listarOrdenesContrata') {
     if (nivelOperativo.includes(nivelUsuario.usuario.tipo)) {
       try {
-        const tipo = req.headers.tipo;
-
+        const tipo: string|any = req.headers.tipo;
+        console.log(nivelUsuario)
         await Orden.find({
           tipo: tipo,
           'contrata_asignada.nombre_contrata': nivelUsuario.contrata.nombre, 
@@ -85,7 +85,7 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
                 filtros: filtros
               }
             });
-        }).catch((error) => {
+        }).catch((error:Error) => {
           logger.error({
             message: error.message,
             service: 'Listar Ordenes por contrata (metodo find)'
@@ -105,9 +105,9 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
   } else if (req.headers.metodo === 'listarLiquidadas') {
     if (nivelAdmin.includes(nivelUsuario.usuario.tipo)) {
       try {
-        const tipo = req.headers.tipo;
-        const fechaInicio = req.headers.fechainicio;
-        const fechaFin = req.headers.fechafin;
+        const tipo: string|any = req.headers.tipo;
+        const fechaInicio: string|any = req.headers.fechainicio;
+        const fechaFin: string|any = req.headers.fechafin;
 
         await Orden.find({
           tipo: tipo,
@@ -123,7 +123,7 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
               ordenes: data,
               filtros: {}
             }
-        }).catch((error) => {
+        }).catch((error:any) => {
           logger.error({
             message: error.message,
             service: 'Listar Ordenes por contrata (try/catch)'
@@ -143,8 +143,8 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
   } else if (req.headers.metodo === 'listarOrden') {
     if (nivelOperativo.includes(nivelUsuario.usuario.tipo)) {
       try {
-        const tipo = req.headers.tipo;
-        const codigo = req.headers.codigo; 
+        const tipo:string|any = req.headers.tipo;
+        const codigo: string|any = req.headers.codigo; 
 
         await Orden.find({
           tipo: tipo,
@@ -160,7 +160,7 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
               ordenes: data, 
               filtros: []
             }
-        }).catch((error) => {
+        }).catch((error:any) => {
             logger.error({
               message: error.message,
               service: 'Listar Ordene(metodo find)'
@@ -364,7 +364,7 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
           }, {
             $set: { 'contrata_asignada.estado' : estado, 'contrata_asignada.observacion' :  observacion},
             $push: { detalle_registro },
-          }).then((e) => {
+          }).then(() => {
             if (ordenes.length > 1) {
               status = 200;
               respuesta = {title: 'Ordenes actualizadas correctamente.', status: 'success'};
@@ -372,7 +372,7 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
               status = 200;
               respuesta = {title: 'Orden actualizada correctamente.', status: 'success'};
             }
-          }).catch((err) => {
+          }).catch((err:any) => {
             logger.error({
               message: err.message,
               service: 'Actualizar estado de la orden'
@@ -408,11 +408,11 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
           'contrata_asignada.estado': 'Asignada'},
         $push: { detalle_registro} }, {
         new: true
-      }).then((e) => {
+      }).then((e:any) => {
         console.log(e);
         status = 200,
         respuesta = {title: `Ordenes asignadas: ${e.nModified}.`, status: 'success'}
-      }).catch((error) => {
+      }).catch((error:any) => {
         logger.error({
           message: error.message,
           service: 'Asignar técnico.'

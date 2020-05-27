@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import slugify from 'slugify';
+import { Types } from 'mongoose';
 import bcrypt from 'bcrypt';
 import Empleado, { IEmpleado } from '../models/Empleado';
 
@@ -62,8 +62,12 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
       })
   } else if (req.headers.metodo === 'listarEmpleados'){
     if (nivelAdministrativo.includes(tipoUsuario)) {
-      await Empleado.find({'usuario.tipo': {$gt: tipoUsuario === 1 ? 0 : tipoUsuario}}).sort({'usuario.tipo' : 'descending'})
-        .select({
+      await Empleado.find({'usuario.tipo': {$gt: tipoUsuario === 1 ? 0 : tipoUsuario}
+      }).populate({
+        path: 'contrata',
+        select: {nombre: 1}
+      }).sort({'usuario.tipo' : 'descending'
+      }).select({
           'usuario.password': 0, 
           'usuario.imagen_perfil': 0,
           'usuario.estado': 0,
@@ -74,7 +78,8 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
             email: usuario.usuario.email,
             tipo_documento: usuario.documento_identidad.tipo,
             numero_documento: usuario.documento_identidad.numero,
-            contrata_nombre: usuario.contrata.nombre
+            contrata_nombre: usuario.contrata.nombre,
+            contrata_id: usuario.contrata._id
           }));
           return res.status(201).json(dataUsuarios);
       }).catch((error) => {
@@ -100,7 +105,8 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
               email: usuario.usuario.email,
               tipo_documento: usuario.documento_identidad.tipo,
               numero_documento: usuario.documento_identidad.numero,
-              contrata_nombre: usuario.contrata.nombre
+              contrata_nombre: usuario.contrata.nombre,
+              contrata_id: usuario.contrata._id
             }));
             return res.status(201).json(dataUsuarios);
         }).catch((error) => {
@@ -114,7 +120,7 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
       return res.status(401).send("Usuario sin permisos");
     }
   } else if (req.headers.metodo === 'listarTecnicos') {
-    await Empleado.find({'contrata.nombre': nivelUsuario.contrata.nombre, 'usuario.tipo': 9, 'estado_empresa.activo': true})
+    await Empleado.find({contrata: nivelUsuario.contrata._id,'usuario.tipo': 9, 'estado_empresa.activo': true})
       .select({
         nombre: 1, apellidos: 1
     }).sort({
@@ -190,74 +196,75 @@ export const actualizarEmpleado = async (req: Request, res: Response): Promise<R
   const nivelUsuario: IEmpleado|any = req.user;
   const tipoUser: Number|any = nivelUsuario.usuario.tipo
   if (req.headers.metodo === 'actualizarEmpleado') {
-    const {
-      nombre, apellidos, email, contrata_nombre, tipo_documento, numero_documento,area , carnet, nacionalidad, observacion
-    } = req.body.row;
-    if (tipoUser < 5) {
-      await Empleado.findByIdAndUpdate({_id: req.body.key}, {
-        nombre,
-        apellidos,
-        'usuario.email': email,
-        contrata: {
-          nombre: contrata_nombre,
-          codigo: contrata_nombre && slugify(contrata_nombre)
-        },
-        documento_identidad: {
-          tipo: tipo_documento,
-          numero: numero_documento
-        },
-        area,
-        carnet,
-        nacionalidad,
-        observacion
-      }).then(() => {
-        logger.log({
-          level: 'info',
-          message: `Empleado ${email} actualizado por ${nivelUsuario.usuario.email}`,
-          service: 'Actualizar Empleado'
+    try {
+      const {
+        nombre, apellidos, email, contrata_nombre, tipo_documento, numero_documento,area , carnet, nacionalidad, observacion
+      } = req.body.row;
+      if (tipoUser < 5) {
+        await Empleado.findByIdAndUpdate({_id: req.body.key}, {
+          nombre,
+          apellidos,
+          'usuario.email': email,
+          contrata: Types.ObjectId(contrata_nombre),
+          documento_identidad: {
+            tipo: tipo_documento,
+            numero: numero_documento
+          },
+          area,
+          carnet,
+          nacionalidad,
+          observacion
+        }).then(() => {
+          logger.log({
+            level: 'info',
+            message: `Empleado ${email} actualizado por ${nivelUsuario.usuario.email}`,
+            service: 'Actualizar Empleado'
+          })
+          respuesta = {title: 'Empleado actualizado correctamente.', status: 'success'}
+          status = 200
+        }).catch((error:any) => {
+          logger.error({
+            message: error.message,
+            service: 'Actualizar Empleado'
+          });
+          respuesta = {title: 'Error actualizando el empleado.', status: 'error'}
+          status = 400
         })
-        respuesta = {title: 'Empleado actualizado correctamente.', status: 'success'}
-        status = 200
-      }).catch((error) => {
-        logger.error({
-          message: error.message,
-          service: 'Actualizar Empleado'
-        });
-        respuesta = {title: 'Error actualizando el empleado.', status: 'error'}
-        status = 400
-      })
-    } else if(nivelUsuario.usuario.tipo === 6){
-      await Empleado.findByIdAndUpdate({_id: req.body.key}, {
-        nombre,
-        apellidos,
-        'usuario.email': email,
-        documento_identidad: {
-          tipo: tipo_documento,
-          numero: numero_documento
-        },
-        area,
-        carnet,
-        nacionalidad,
-        observacion
-      }).then(() => {
-        logger.log({
-          level: 'info',
-          message: `Empleado ${email} actualizado por ${nivelUsuario.usuario.email}`,
-          service: 'Actualizar Empleado'
+      } else if(nivelUsuario.usuario.tipo === 6){
+        await Empleado.findByIdAndUpdate({_id: req.body.key}, {
+          nombre,
+          apellidos,
+          'usuario.email': email,
+          documento_identidad: {
+            tipo: tipo_documento,
+            numero: numero_documento
+          },
+          area,
+          carnet,
+          nacionalidad,
+          observacion
+        }).then(() => {
+          logger.log({
+            level: 'info',
+            message: `Empleado ${email} actualizado por ${nivelUsuario.usuario.email}`,
+            service: 'Actualizar Empleado'
+          })
+          respuesta = {title: 'Empleado actualizado correctamente.', status: 'success'}
+          status = 200
+        }).catch((error) => {
+          logger.error({
+            message: error.message,
+            service: 'Actualizar Empleado'
+          });
+          respuesta = {title: 'Error actualizando el empleado.', status: 'error'}
+          status = 400
         })
-        respuesta = {title: 'Empleado actualizado correctamente.', status: 'success'}
-        status = 200
-      }).catch((error) => {
-        logger.error({
-          message: error.message,
-          service: 'Actualizar Empleado'
-        });
-        respuesta = {title: 'Error actualizando el empleado.', status: 'error'}
-        status = 400
-      })
-    } else {
-      respuesta = {title: 'Usuario sin permisos', status: 'error'}
-      status = 404
+      } else {
+        respuesta = {title: 'Usuario sin permisos', status: 'error'}
+        status = 404
+      }
+    } catch (error) {
+      console.log(error);
     }
   } else if(req.headers.metodo === 'actualizarFechas'){
     if (nivelUsuario.usuario.tipo < 5) {

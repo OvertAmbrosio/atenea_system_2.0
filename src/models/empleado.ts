@@ -1,4 +1,4 @@
-import { model, Schema, Document } from 'mongoose';
+import { model, Schema, Document, Types } from 'mongoose';
 import bcrypt from 'bcrypt';
 import Usuario, { IUsuario } from './Usuario'
 
@@ -8,10 +8,7 @@ export interface IEmpleado extends Document {
   apellidos: string;
   fecha_nacimiento?: Date;
   cargo?: string;
-  contrata?: {
-    nombre?: string,
-    slug?: string
-  };
+  contrata?: string|Types.ObjectId;
   documento_identidad?: {
     tipo?: boolean,
     numero?: string
@@ -45,17 +42,11 @@ const empleadoSchema = new Schema({
   },
   fecha_nacimiento: {
     type: Date,
-    default: Date.now()
+    default: new Date()
   },
   contrata: {
-    nombre: {
-      type: String,
-      default: null
-    },
-    slug: {
-      type: String,
-      default: null
-    }
+    type: Schema.Types.ObjectId,
+    ref: 'Contrata'
   },
   documento_identidad: {
     tipo: {
@@ -74,7 +65,7 @@ const empleadoSchema = new Schema({
   },
   carnet: {
     type: String,
-    default: null
+    default: '-'
   },
   estado_empresa: {
     fecha_ingreso: Date,
@@ -92,7 +83,7 @@ const empleadoSchema = new Schema({
   },
   observacion: {
     type: String,
-    default: null
+    default: '-'
   }
 }, {
   timestamps: true

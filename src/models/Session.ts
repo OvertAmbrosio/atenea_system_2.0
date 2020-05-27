@@ -15,7 +15,8 @@ const sessionSchema = new Schema({
   createAt: {
     type: Date,
     required: true,
-    default: Date.now,
+    //Date . now tiene retraso de media hora, pero new Date no acepta el expires
+    default: Date.now(),
     index: { expires : '12h' },
   },
 });
