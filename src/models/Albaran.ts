@@ -26,7 +26,7 @@ export interface IAlbaran extends Document {
 };
 
 const albaranSchema = new Schema({
-  tipo: {//entrada, salida, devolucion
+  tipo: {//entrada, salida, devolucion, traslado
     type: String,
     lowercase: true,
     trim: true,

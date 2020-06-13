@@ -4,6 +4,7 @@ import { IEmpleado } from '../models/Empleado';
 import Albaran from '../models/Albaran';
 import Almacen from '../models/Almacen';
 import Equipo from '../models/Equipo';
+import EquipoBaja from '../models/EquipoBaja';
 import EntradaAlmacen from '../lib/Logistica/EntradaAlmacen';
 import SalidaAlmacen from '../lib/Logistica/SalidaAlmacen';
 import logger from '../lib/logger';
@@ -209,6 +210,25 @@ export const listarAlmacen = async (req: Request, res: Response): Promise<Respon
           service: 'obtenerAlmacenes(almacen.find)'
         })
       });
+    };
+  } else if (metodo === 'obtenerEquiposBaja') {
+    if (nivelAdmin.includes(nivelUsuario)) {
+      status = 200
+      await EquipoBaja.find().populate('material orden tecnico contrata usuario_entrega usuario_aprueba').sort('createdAt')
+      .then((equipos) => {
+        respuesta = {
+          title: 'Busqueda correcta.',
+          status: 'success',
+          data: equipos,
+          dato: ''
+        };
+      }).catch((error) => {
+        logger.error({
+          message: error.message,
+          service: 'obtenerEquiposBaja'
+        });
+        respuesta.title = "Error en la busqueda.";
+      })
     };
   }
 

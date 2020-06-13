@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 
 import Empleado from '../models/Empleado';
 import Session from '../models/Session';
-import { ValidarAcceso, ValidarRegistro , ValidarSession } from '../validations';
+import { ValidarAcceso, ValidarSession, ValidarTecnico } from '../validations';
 import createToken from '../lib/crearToken';
 import decifrarToken from '../lib/decifrarToken';
 import reiniciarPassword from '../lib/reiniciarPassword';
@@ -41,23 +41,24 @@ export const acceder = async (req: Request, res: Response): Promise<Response> =>
 
 export const session = async (req: Request, res: Response): Promise<Response> => {
   const token = req.headers.authorization || '';
-  let respuesta = {title: '', status:'error', sesion: false};
+  // let respuesta = {title: '', status:'error', sesion: false};
   if (token?.length > 20) {
-    const {usuarioDecoded} = decifrarToken(token);
-    await Session.findOne({_id : usuarioDecoded.idSesion})
+    const {usuarioDecoded, error} = await decifrarToken(token);
+    if(error || usuarioDecoded === undefined) return res.send({title: 'No hay sesión', status: 'error', sesion: false})
+    return await Session.findOne({_id : usuarioDecoded.idSesion})
       .then((s) => {
         if (s) {
-          respuesta = {title: 'Si hay sesión', status: 'success', sesion: true};
+          return res.send({title: 'Si hay sesión', status: 'success', sesion: true})
         } else {
-          respuesta = {title: 'No hay sesión', status: 'error', sesion: false};
+          return res.send({title: 'No hay sesión', status: 'error', sesion: false});
         }
     }).catch((error) => {
         logger.error({message: 'Error verificando la sesion - ' + error.message + '-' + error.code});
-        respuesta = {title: error.message, status: 'error', sesion: false};
+        return res.send({title: error.message, status: 'error', sesion: false});
     });
+  } else {
+    return res.send({title: 'No hay sesión', status: 'error', sesion: false});
   };
-
-  return res.send(respuesta)
 };
 
 export const cerrarSesion = async (req: Request, res: Response): Promise<Response> => {
@@ -163,5 +164,35 @@ export const configuraciones = async (req: Request, res: Response): Promise<Resp
   };
 
   return res.send(respuesta)
-}
+};
+
+export const accederTecnico = async (req: Request, res: Response): Promise<Response> => {
+  const { errors, isValid, usuarioObjeto } = await ValidarTecnico(req.body);
+  // Comprobar validaciones
+  if (!isValid) return res.json({status: 'danger', errors});
+
+  if (usuarioObjeto) {
+    const {estado, id} = await ValidarSession(usuarioObjeto.usuario.email);
+    if (estado) {
+      logger.error(usuarioObjeto.carnet + ' - Inicio de sesión fallido.');
+      return res.json({ error: 'Ya hay una sesión activa.', status: 'warning' });
+    } else {
+      const idSesion: string = id;
+      const token: string = createToken(usuarioObjeto, idSesion);
+      return res.status(201)
+         .json({
+            token: token,
+            title: 'Acceso correcto.', 
+            status: 'success',
+          })
+    }
+  } else {
+    logger.log({
+      level:'error',
+      message: 'Error obteniendo el usuario',
+      service: 'Login'
+    })
+    return res.status(401).json({error: 'Error en el servidor', status: 'danger'})
+  }
+};
 

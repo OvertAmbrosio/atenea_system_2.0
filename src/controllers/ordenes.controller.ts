@@ -7,10 +7,13 @@ import obtenerFecha from '../lib/obtenerFecha'
 import logger from '../lib/logger';
 import obtenerFiltros from '../lib/obtenerFiltros';
 import subirImagenes from '../lib/subirImagenes';
-import { Error } from 'mongoose';
+import { Error, Schema } from 'mongoose';
+import LiquidarFerreteria from '../lib/Logistica/Ferreteria/LiquidarFerreteria';
+import LiquidarEquipo from '../lib/Logistica/Equipos/LiquidarEquipo';
 
 const nivelAdmin = [1,2,4];
 const nivelOperativo = [1,2,4,6,7];
+const tecAsignado = ['pendiente','agendada','iniciada'];
 //nivel 1 es administrador -> todo
 //nivel 2 es Jefe de Operaciones -> Todo Operaciones / usuario
 //nivel 4 es Lider de Gestión -> Todo Operaciones / parte de usuario
@@ -21,7 +24,7 @@ const nivelOperativo = [1,2,4,6,7];
 export const listarOrden = async (req: Request, res: Response): Promise<Response> => {
   const nivelUsuario: IEmpleado|any = req.user;
   let status = 404;
-  let respuesta = {title: 'Error en el servidor', status: 'error', ordenes: [], filtros: {}};
+  let respuesta = {title: 'Error en el servidor', status: 'error', ordenes: [] as Array<any>|any, filtros: {}};
   const fechas = obtenerFecha();
   if (req.headers.metodo === 'listarOrdenes') {
     if (nivelAdmin.includes(nivelUsuario.usuario.tipo)) {
@@ -66,7 +69,6 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
     if (nivelOperativo.includes(nivelUsuario.usuario.tipo)) {
       try {
         const tipo: string|any = req.headers.tipo;
-        console.log(nivelUsuario)
         await Orden.find({
           tipo: tipo,
           'contrata_asignada.nombre_contrata': nivelUsuario.contrata.nombre, 
@@ -74,6 +76,12 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
             {'estado_sistema.fecha_liquidada': {$gte: fechas.fechaHoraLocal} },
             {'estado_sistema.fecha_liquidada': null }
           ]
+        }).populate({
+          path: 'contrata_asignada.tecnico_asignado.material_usado.material_no_seriado.material',
+        }).populate({
+          path: 'contrata_asignada.tecnico_asignado.material_usado.material_seriado.material',
+        }).populate({
+          path: 'contrata_asignada.tecnico_asignado.material_usado.material_baja.material',
         }).then(async(data: any) => {
           await obtenerFiltros(tipo, data)
             .then((filtros: Object|any) => {
@@ -177,6 +185,65 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
     } else {
       respuesta.title = 'No tienes permisos suficientes.';
     }
+  } else if (req.headers.metodo === 'buscarOrden') {
+    try {
+      const codigo = String(req.headers.codigo);
+      await Orden.findOne({codigo_requerimiento: codigo}).select({
+        tipo:1, codigo_requerimiento:1, fecha_registro:1, distrito:1, contrata_asignada:1
+      }).then((data) => {
+        status = 200;
+        if (!data?.contrata_asignada?.nombre_contrata === nivelUsuario.contrata.nombre) {
+          respuesta = {
+            title: 'Esta orden no está asignada.',
+            status: 'warning',
+            ordenes: data,
+            filtros: []
+          };
+        } else {
+          respuesta = {
+            title: 'Busqueda correcta.',
+            status: 'success',
+            ordenes: data,
+            filtros: []
+          };
+        }
+      }).catch((error) => {
+        logger.error({
+          message: error.message,
+          service: 'buscarOrden(metodo find)'
+        })
+      })
+    } catch (error) {
+      respuesta.title = 'Error obteniendo valores.';
+      status = 200;
+      logger.error({
+        message: error.message,
+        service: 'buscarOrden (try/catch)'
+      })
+    }
+  } else if (req.headers.metodo === 'ordenesTecnico') {
+    status = 200;
+    await Orden.find({
+      'contrata_asignada.tecnico_asignado.id': nivelUsuario._id,
+      $or:[
+        { 'contrata_asignada.tecnico_asignado.fecha_finalizado': null },
+        { 'contrata_asignada.tecnico_asignado.fecha_finalizado': new Date() }
+      ]
+    }).sort('contrata_asignada.tecnico_asignado.estado_orden').then((data) => {
+      respuesta = {
+        title: "Busqueda Correcta.",
+        status: 'success',
+        ordenes: data, 
+        filtros: []
+      }
+    }).catch((error) => {
+      respuesta = {
+        title: error.message,
+        status: 'error',
+        ordenes: [], 
+        filtros: []
+      }
+    })
   } else {
     respuesta.title = 'Metodo incorrecto.';
   }
@@ -345,6 +412,12 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
     if (nivelOperativo.includes(nivelUsuario.usuario.tipo)) {
       const {ordenes, estado, observacion } = req.body;
       const files: any = req.files;
+      let estado_tecnico = 1;
+      if (tecAsignado.includes(String(estado).toLowerCase())) {
+        estado_tecnico = 1;
+      } else {
+        estado_tecnico = 3;
+      }
       //funcion para subir imagenes a cloudinary, si no hay imagenes devolverá vacio
       await subirImagenes(files)
         .then(async(imagenes) => {
@@ -362,7 +435,11 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
           await Orden.updateMany({
             _id: { $in: arrayOrden}
           }, {
-            $set: { 'contrata_asignada.estado' : estado, 'contrata_asignada.observacion' :  observacion},
+            $set: {  
+              'contrata_asignada.estado' : estado, 
+              'contrata_asignada.observacion' :  observacion,
+              'contrata_asignada.tecnico_asignado.estado_orden': estado_tecnico
+            },
             $push: { detalle_registro },
           }).then(() => {
             if (ordenes.length > 1) {
@@ -402,14 +479,14 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
       await Orden.updateMany({
         _id: { $in: ordenes}}, {
         $set: { 
-          'contrata_asignada.tecnico_asignado.id':  idTecnico, 
-          'contrata_asignada.tecnico_asignado.nombre_tecnico':  nombreTecnico, 
+          'contrata_asignada.tecnico_asignado.id': idTecnico, 
+          'contrata_asignada.tecnico_asignado.nombre_tecnico': nombreTecnico, 
           'contrata_asignada.tecnico_asignado.estado_orden':  1,
+          'contrata_asignada.tecnico_asignado.fecha_finalizado': null,
           'contrata_asignada.estado': 'Asignada'},
         $push: { detalle_registro} }, {
         new: true
       }).then((e:any) => {
-        console.log(e);
         status = 200,
         respuesta = {title: `Ordenes asignadas: ${e.nModified}.`, status: 'success'}
       }).catch((error:any) => {
@@ -426,4 +503,72 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
     respuesta = {title: 'Metodo incorrecto.', status: 'error'};
   }
   return res.status(status).send(respuesta);
-}
+};
+
+export const editarOrden = async (req: Request, res: Response): Promise<Response> => {
+  const empleado: IEmpleado|any = req.user;
+  const metodo = req.headers.metodo;
+  let respuesta = {title: 'Error en el servidor', status: 'error'};
+
+  if (metodo === 'liquidarOrdenTecnico') {
+    try {
+      const { almacen_actual, codigo_requerimiento, observacion } = req.body;
+      const material_usado = JSON.parse(req.body.material_usado);
+      const files: any = req.files;
+
+      var objForUpdate:{[key: string]: any} = {
+        'contrata_asignada.tecnico_asignado.estado_orden': 2,
+        'contrata_asignada.tecnico_asignado.observacion': observacion,
+        'contrata_asignada.tecnico_asignado.material_usado': material_usado,
+      };
+
+      //subir las imagenes
+      await subirImagenes(files)
+      .then(async(imagenes) => {
+        if(files.length > 0) objForUpdate['contrata_asignada.tecnico_asignado.imagenes'] = imagenes;
+        await Orden.findOneAndUpdate({codigo_requerimiento}, objForUpdate
+        ).then(async() => await LiquidarFerreteria(
+          material_usado.material_no_seriado,
+          almacen_actual,
+          'pendiente')
+        ).then(async() => await LiquidarEquipo(
+          material_usado.material_seriado,
+          almacen_actual,
+          'pendiente')
+        ).then((a) => {
+          console.log(a);
+          respuesta = {
+            title: 'Orden enviada correctamente.',
+            status: 'success'
+          }
+        }).catch((error) => {//error de la consulta
+          respuesta = {
+            title: error.message,
+            status: 'danger'
+          };
+          logger.error({
+            message: error.message,
+            service: 'liquidarOrdenTecnico(findOneAndUpdate)'
+          })
+        });
+      }).catch((error) => {//error de cloudinary
+        respuesta = {
+          title: error.message,
+          status: 'warning'
+        };
+        logger.error({
+          message: error.message,
+          service: 'liquidarOrdenTecnico(subirimagenes)'
+        });
+      })
+    } catch (error) {//error del trycatch
+      respuesta = {
+        title: error.message,
+        status: 'danger'
+      }
+    }    
+  } else {
+    respuesta = {title: 'Metodo incorrecto.', status: 'error'};
+  }
+  return res.send(respuesta);
+};

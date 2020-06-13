@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import moment from 'moment';
 
-import { IEmpleado } from '../models/Empleado';
+import Empleado, { IEmpleado } from '../models/Empleado';
 import Albaran from '../models/Albaran';
 import logger from '../lib/logger';
 import DeshacerEntrada from '../lib/Logistica/DeshacerEntrada';
@@ -13,8 +13,8 @@ const nivelJefe = [1,3,5,6]
 const nivelLogistica = [1,3,5,6,8];
 
 export const listarRegistro = async (req: Request, res: Response): Promise<Response> => {
-  const Empleado: IEmpleado|any = req.user;
-  const nivelUsuario = Empleado.usuario.tipo;
+  const Emp: IEmpleado|any = req.user;
+  const nivelUsuario = Emp.usuario.tipo;
   const metodo = req.headers.metodo;
 
   let status = 404
@@ -434,6 +434,145 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
         })
       }
     }
+  } else if (metodo === 'pendientesTraslado') {
+    status = 200;
+    try {
+      await Empleado.find({contrata: Emp.contrata._id}).select('_id').then( async(data) => {
+        const usuarios = data.map(item => item._id);
+        await Albaran.find({'usuario_entrega': {$in: usuarios }, tipo: 'traslado'}).sort({
+          createdAt: -1
+        }).populate({
+          path: 'almacen_entrada',
+          select: 'tecnico',
+          populate: {
+            path: 'tecnico',
+            select: 'nombre apellidos'
+          }
+        }).populate({
+          path: 'almacen_salida',
+          select: 'tecnico',
+          populate: {
+            path: 'tecnico',
+            select: 'nombre apellidos'
+          }
+        }).populate({
+          path: 'usuario_confirma',
+          select: 'nombre apellidos'
+        }).populate({
+          path: 'usuario_entrega', 
+          select: 'nombre apellidos'
+        }).populate('lote.material')
+          .then((registros) => {
+            status = 200;
+            respuesta = {
+              title: 'Busqueda Correcta.',
+              status: 'success',
+              data: registros
+            }
+        }).catch((error) => {
+          status = 200;
+          console.log(error);
+          respuesta = {
+            title: 'Error en la busqueda.',
+            status: 'error',
+            data: [{message: error.message}]
+          };
+        })
+      })
+    } catch (error) {
+      respuesta.title = 'Error obteniendo datos del cliente.'
+      logger.error({
+        message: error.mesage,
+        service: 'pendientesTraslado (try/catch)'
+      })
+    }
+  } else if (metodo === 'registroTraslado') {
+    status = 200;
+    try {
+      const fechaInicio: string|any = req.headers.fechainicio;
+      const fechaFin: string|any = req.headers.fechafin; 
+
+      await Empleado.find({contrata: Emp.contrata._id}).select('_id').then( async(data) => {
+        const usuarios = data.map(item => item._id);
+        await Albaran.find({
+          'usuario_entrega': {$in: usuarios }, 
+          tipo: 'traslado', 
+          createdAt: { 
+            $gte: moment(fechaInicio).add(1, 'day').format('YYYY-MM-DD HH:mm') , 
+            $lte: moment(fechaFin).add(1, 'day').format('YYYY-MM-DD HH:mm') } 
+        }).sort({
+          createdAt: -1
+        }).populate({
+          path: 'almacen_entrada',
+          select: 'tecnico',
+          populate: {
+            path: 'tecnico',
+            select: 'nombre apellidos'
+          }
+        }).populate({
+          path: 'almacen_salida',
+          select: 'tecnico',
+          populate: {
+            path: 'tecnico',
+            select: 'nombre apellidos'
+          }
+        }).populate({
+          path: 'usuario_confirma',
+          select: 'nombre apellidos'
+        }).populate({
+          path: 'usuario_entrega', 
+          select: 'nombre apellidos'
+        }).populate('lote.material')
+          .then((registros) => {
+            status = 200;
+            respuesta = {
+              title: 'Busqueda Correcta.',
+              status: 'success',
+              data: registros
+            }
+        }).catch((error) => {
+          status = 200;
+          console.log(error);
+          respuesta = {
+            title: 'Error en la busqueda.',
+            status: 'error',
+            data: [{message: error.message}]
+          };
+        })
+      })
+    } catch (error) {
+      respuesta.title = 'Error obteniendo datos del cliente.'
+      logger.error({
+        message: error.mesage,
+        service: 'registroTraslado (try/catch)'
+      })
+    }
+  } else if (metodo === 'buscarEquipo') {
+    try {
+      status = 200;
+      const almacen = String(req.headers.almacen);//serie del equipo
+      await Albaran.find({'lote.series': {$in: [almacen]}, tipo: {$ne: 'entrada'}
+      }).select('tipo almacen_entrada almacen_salida estado_registro createdAt').populate({
+        path: 'almacen_entrada',
+        populate: 'contrata tecnico'
+      }).populate({
+        path: 'almacen_salida',
+        populate: 'contrata tecnico'
+      }).then((elements) => {
+        respuesta = {
+          title: 'Busqueda correcta.',
+          status: 'success',
+          data: elements
+        };
+      }).catch((error) => {
+        console.log(error);
+      })
+    } catch (error) {
+      logger.error({
+        message: error.message,
+        service: 'buscarEquipo(try/catch)'
+      })
+    }   
   }
 
   return res.status(status).send(respuesta);
@@ -633,6 +772,7 @@ export const actualizarRegistro = async (req: Request, res: Response): Promise<R
         console.log(error);
       }
     }
+  
   } else {
     respuesta.title = "Metodo incorrecto"
   }

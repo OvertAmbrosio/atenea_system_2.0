@@ -34,7 +34,7 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
     if (nivelAdmin.includes(nivelUsuario)) {
       try {
         const contrata = String(req.headers.idcontrata);
-        await Almacen.findOne({contrata: contrata}).then(async(data) => {
+        await Almacen.findOne({contrata: contrata, tipo: 'IMP'}).then(async(data) => {
           if (data) {
             respuesta = {
               title: 'Busqueda correcta.',
@@ -156,8 +156,8 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
           })
         } else {
           respuesta = {
-            title: 'Busqueda correcta.',
-            status: 'success',
+            title: 'Busqueda incorrecta.',
+            status: 'warning',
             data: { ferreteria: almacen, equipos: equiposAlmacen },
             dato: ''
           };
@@ -187,6 +187,7 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
             } 
             //buscar los equipos con el id del almacen
             return await Equipo.find({
+              estado: { $ne: 'liquidado'},
               $or: [
                 {almacen_entrada: alm._id}, {almacen_salida: alm._id}
               ]

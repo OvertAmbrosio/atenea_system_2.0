@@ -4,6 +4,8 @@ import { IEmpleado } from '../models/Empleado';
 import Material, { IMaterial } from '../models/Material';
 import logger from '../lib/logger';
 import { Error } from 'mongoose';
+import Equipo from '../models/Equipo';
+import EquipoBaja from '../models/EquipoBaja';
 
 const nivelAdmin = [1,3];
 
@@ -11,10 +13,59 @@ export const listarMateriales = async (req: Request, res: Response): Promise<Res
 
   const Empleado: IEmpleado|any = req.user;
   const nivelUsuario = Empleado.usuario.tipo;
+  const metodo = String(req.headers.metodo);
 
-  let respuesta = {title: 'Acceso incorrecto.', status: 'error', data: [] as Array<IMaterial>}
+  let respuesta = {title: 'Acceso incorrecto.', status: 'error', data: [] as Array<IMaterial>|any}
 
-  if (nivelAdmin.includes(nivelUsuario)) {
+  if (metodo === 'buscarEquipo') {
+    try {
+      const serie = String(req.headers.serie);
+      await Equipo.findOne({_id: serie}).populate({path: 'almacen_entrada', populate: 'contrata tecnico'
+        }).populate({path: 'almacen_salida', populate: 'contrata tecnico'}).populate('material').then((element) => {
+          respuesta = {
+            title: 'Busqueda corrrecta.',
+            status: 'success',
+            data: element
+          };
+        }).catch((error) => {
+          logger.error({
+            message: error.message,
+            service: 'buscarEquipo (findone)'
+          });
+          respuesta.title = 'Error en la busqueda';
+        })
+    } catch (error) {
+      logger.error({
+        message: error.message,
+        service: 'buscarEquipo (try/catch)'
+      });
+      respuesta.title = 'Error obteniendo datos del cliente.'
+    }
+  } else if (metodo === 'buscarEquipoBaja') {
+    try {
+      const serie = String(req.headers.serie);
+      await EquipoBaja.findOne({serie: serie}).populate('material orden tecnico contrata usuario_entrega usuario_aprueba')
+        .then((elements) => {
+          respuesta = {
+            title: 'Busqueda correcta',
+            status: 'success',
+            data: elements
+          }
+        }).catch((error) => {
+          logger.error({
+            message: error.message,
+            service: 'buscarEquipoBaja (findOne)'
+          })
+          respuesta.title = 'Error en la busqueda.'
+        })
+    } catch (error) {
+      logger.error({
+        message: error.message,
+        service: 'buscarEquipoBaja (try/catch)'
+      });
+      respuesta.title = 'Error obteniendo datos del cliente.'
+    }
+  } else if (nivelAdmin.includes(nivelUsuario)) {
     await Material.find().sort({seriado:1, tipo: 1}).then((data) => {
       respuesta = {title: 'Busqueda Correcta.', status: 'success', data}
     }).catch((error:Error) => {
@@ -24,7 +75,7 @@ export const listarMateriales = async (req: Request, res: Response): Promise<Res
       });
       respuesta = {title: 'Error buscando materiales.', status: 'error', data: []}
     });
-  } 
+  }
 
   return res.send(respuesta);
 

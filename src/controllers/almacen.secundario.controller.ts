@@ -2,8 +2,11 @@ import { Request, Response } from 'express';
 
 import { IEmpleado } from '../models/Empleado';
 import Almacen from '../models/Almacen';
+import Albaran from '../models/Albaran';
 import Equipo from '../models/Equipo';
+import EquipoBaja from '../models/EquipoBaja';
 import logger from '../lib/logger';
+import SalidaAlmacen from '../lib/Logistica/SalidaAlmacen';
 
 const nivelAdmin = [1,3,5];
 const nivelLogistica = [1,3,5,6,8];
@@ -12,7 +15,6 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
   const Empleado: IEmpleado|any = req.user;
   const nivelUsuario = Empleado.usuario.tipo;
   const metodo = req.headers.metodo;
-
   let respuesta = { title: 'Acceso denegado.', status: 'error', dato: '', data: {}};
 
   if (metodo === 'comprobarTecnico') {
@@ -30,6 +32,7 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
           } else {
             const nuevoAlmacen = new Almacen({
               tipo: 'IMS',
+              contrata: Empleado.contrata._id,
               tecnico: tecnico
             });
             await nuevoAlmacen.save().then((data) => {
@@ -62,7 +65,324 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
         });
       }
     }
+  } else if (metodo  === 'obtenerAlmacen') {
+    if (nivelLogistica.includes(nivelUsuario)) {
+      try {
+        const almacenTecnico = String(req.headers.idtecnico);
+        await Almacen.findOne({_id: almacenTecnico}).populate('ferreteria.material').then(async(almacen) => {
+          const equiposAlmacen = new Array;
+          if (almacen) {
+            await Equipo.find({estado: {$ne: 'liquidado'}, $or: [{almacen_entrada: almacen._id}, {almacen_salida: almacen._id}]}).populate('material').then(async(equipos) => {
+              const materiales = [] as Array<any>;
+              const ObtenerMateriales = equipos.map((item:any) => {
+                if (!materiales.some(material => material.nombre === item.material.nombre)) {
+                  return materiales.push({_id: item.material._id ,nombre:item.material.nombre, tipo:item.material.tipo})
+                }
+              });
+  
+              const CrearObjeto = materiales.map((item) => {
+                let objeto = {
+                  material: {
+                    id: item._id,
+                    nombre: item.nombre,
+                    tipo: item.tipo,
+                    seriado: true,
+                    medida: 'UNIDAD',
+                  },      
+                  entrada: [] as Array<string>,
+                  contable: [] as Array<string>,
+                  salida: [] as Array<string>,
+                };
+                const nuevoObjeto = equipos.map((itemDos:any) => {
+                  if (objeto.material.nombre === itemDos.material.nombre) {
+                    if (itemDos.estado === 'contable' && String(itemDos.almacen_entrada) === String(almacen._id)) {
+                      return objeto.contable.push(itemDos._id);
+                    } else if (itemDos.estado === 'traslado' && String(itemDos.almacen_salida) === String(almacen._id)) {
+                      return objeto.salida.push(itemDos._id);
+                    } else if (itemDos.estado === 'traslado' && String(itemDos.almacen_entrada) === String(almacen._id)) {
+                      return objeto.entrada.push(itemDos._id);
+                    }
+                  }
+                });
+                Promise.all(nuevoObjeto).then(() => equiposAlmacen.push(objeto));
+              });
+  
+              Promise.all([ObtenerMateriales, CrearObjeto]).then(() => {
+                respuesta = {
+                  title: 'Busqueda correcta.',
+                  status: 'success',
+                  data: {ferreteria:almacen.ferreteria, equipos: equiposAlmacen},
+                  dato: ''
+                };
+              });
+            })
+          } else {
+            respuesta = {
+              title: 'Busqueda incorrecta.',
+              status: 'warning',
+              data: { ferreteria: [], equipos: [] },
+              dato: ''
+            };
+          }
+        }).catch((error) => {//error de busqueda
+          respuesta.title = 'Error en la busqueda del almacen.';
+          respuesta.data = {ferreteria: [], equipos: [] };
+          logger.error({
+            message: error.message,
+            service: 'obtenerAlmacen secundario(findOne)'
+          })
+        });
+      } catch (error) {//catch try/c
+        respuesta.title = 'Error obteniendo datos del cliente.';
+        logger.error({
+          message: error.message,
+          service: 'obtenerAlmacen (try/catch).'
+        });
+      }
+    }
+  } else if (metodo === 'registroEquipos') {
+    if (nivelLogistica.includes(nivelUsuario)) {
+      await EquipoBaja.find({contrata: Empleado.contrata._id, $or:[{estado: 'traslado'}, {estado: 'rechazado'}]}).populate(
+        'material orden tecnico usuario_entrega'
+      ).then((datos) => {
+        respuesta = {
+          title: 'Busqueda correcta.',
+          status: 'success',
+          dato: '',
+          data: datos
+        };
+      }).catch((error) => {
+        logger.error({
+          message: error.message,
+          service: 'registroEquipos'
+        });
+        respuesta.title = "Error en la busqueda."
+      })
+    }
+  } else if (metodo === 'almacenTecnico') {
+    await Almacen.findOne({tecnico: Empleado._id}).populate('ferreteria.material').then(async(almacen) => {
+      if (almacen) {
+        //los equipos liquidados tienen el almacen del tec. en almacen_salida y almacen_entrada en null
+        await Equipo.find({almacen_entrada: almacen?._id}).populate({
+          path: 'material',
+          select: 'nombre _id'
+        }).then((equipos) => {
+          respuesta = {
+            title: 'Busqueda correcta.',
+            status: 'success',
+            data: {
+              ferreteria: almacen.ferreteria,
+              equipos: equipos
+            },
+            dato: almacen._id
+          }
+        }).catch((error) => {//error de equipo
+          respuesta.title = 'Error en la busqueda del almacen.';
+          respuesta.data = {ferreteria: [], equipos: [] };
+          logger.error({
+            message: error.message,
+            service: 'almacenTecnico secundario(equipos.find)'
+          })
+        })
+      } else {
+        respuesta = {
+          title: 'Almacen vacio.',
+          status: 'success',
+          dato: '',
+          data: { ferreteria: [], equipos: []}
+        }
+      }
+    }).catch((error) => {//error de almacen
+      respuesta.title = 'Error en la busqueda del almacen.';
+      respuesta.data = {ferreteria: [], equipos: [] };
+      logger.error({
+        message: error.message,
+        service: 'almacenTecnico secundario(findOne)'
+      })
+    })
   } 
 
   return res.send(respuesta);
-}
+};
+
+export const crearRegistro = async (req: Request, res: Response): Promise<Response> => {
+  const Empleado: IEmpleado|any = req.user;
+  const metodo:string|any = req.headers.metodo ? req.headers.metodo : null;
+
+  let status = 404
+  let respuesta = {title: 'Acceso Incorrecto', status: 'error', data: [] as Array<any>}
+  if (metodo === 'trasladoInventario') {
+    try {
+      const { almacenSalida, almacenEntrada, dataOrden, fechaLote, descripcionTraslado } = req.body;
+      const descripcionAlterna = `traslado de lote de ${dataOrden.length} materiales.`;
+      await SalidaAlmacen(dataOrden, almacenSalida, almacenEntrada).then(async(data) => {
+        const operacionesFallidas =  data.filter((item) => item.status === false);
+
+        const nuevoAlbaran = new Albaran({
+          tipo: 'traslado',
+          estado_registro: 'pendiente',
+          lote: data,
+          estado_operacion: operacionesFallidas.length > 0 ? 'error' : 'success',
+          almacen_salida: almacenSalida,
+          almacen_entrada: almacenEntrada,
+          usuario_entrega: Empleado._id,
+          observacion_salida: descripcionTraslado ? descripcionTraslado : descripcionAlterna,
+          fecha_salida: fechaLote
+        });
+
+        const titulo = operacionesFallidas.length > 0 ? 
+          `Se encontrarón ${data.length} materiales, ${operacionesFallidas.length} no se almacenaron correctamente.` 
+          : 
+          `Se registró correctamente la devolucion de ${data.length} materiales.`;
+
+          await nuevoAlbaran.save().then(() => {
+            status = 200;
+            respuesta = {
+              title: titulo,
+              status: operacionesFallidas.length !== 0 ? 'warning' : 'success',
+              data: []
+            };
+          //error nuevoAlbaran
+          }).catch((error) => {
+            logger.error({
+              message: error.message,
+              service: 'NuevoAlbaran.save (devolucion)'
+            });
+            status = 200;
+            respuesta = {
+              title: 'Error guardando la orden de salida.',
+              status: 'warning',
+              data: []
+            };
+          })
+      }).catch((error) => {
+        logger.error({
+          message: error.message,
+          service: 'SalidaAlmacen(trasladoInventario)'
+        });
+        status = 200;
+        respuesta = {
+          title: 'Error actualizando el almacén',
+          status: 'error',
+          data: []
+        };
+      })
+    } catch (error) {
+      logger.error({
+        message: error.message,
+        service: 'trasladoInventario (try/catch)'
+      });
+      respuesta.title = 'Error en la función para crear el traslado (try/catch).'
+    }
+  } else if (metodo === 'equiposBaja') {
+    try {
+      const { dataEquipos, descripcion } = req.body;
+      status = 200;
+      let errores = 0;
+      if (dataEquipos.length > 0) {
+        await Promise.all(dataEquipos.map(async(item:any) => {
+          const nuevoEquipoBaja = new EquipoBaja({
+            serie: item.serie,
+            material: item.id_material,
+            estado: 'traslado',
+            orden: item.id_orden,
+            tecnico: item.id_tecnico,
+            contrata: Empleado.contrata._id,
+            usuario_entrega: Empleado._id,
+            observacion_entrega: descripcion ? descripcion : `Equipo de baja - ${item.serie}`
+          });
+          await nuevoEquipoBaja.save().catch((error) => {
+            ++errores;
+            logger.error({
+              message: error.message,
+              service: `Error guardando equipo de baja - ${item.serie}`
+            });
+          });
+        })).then(() => {
+          respuesta.title = "Equipos enviados correctamente.";
+          respuesta.status = "success";
+        }).catch(() => {
+          respuesta.title = `(${errores}) Errores enviando los equipos.`
+        })
+      } else {
+        respuesta.title = "No se encontró equipos."
+      }
+    } catch (error) {
+      logger.error({
+        message: error.message,
+        service: 'equiposBaja (try/catch)'
+      });
+      respuesta.title = 'Error enviando los equipos de baja. (try/catch).'
+    }
+  }
+  return res.status(status).send(respuesta);
+};
+
+export const editarRegistro = async (req: Request, res: Response): Promise<Response> => {
+  const Empleado: IEmpleado|any = req.user;
+  const metodo:string|any = req.headers.metodo ? req.headers.metodo : null;
+
+  let status = 404
+  let respuesta = {title: 'Acceso Incorrecto', status: 'error', data: [] as Array<any>}
+  if (metodo === 'actualizarEquiposBaja') {
+    try {
+      status = 200;
+      const { id, serie, estado, descripcion } = req.body;
+      const descripcionAlterna = estado === 'recibido' ? `se aceptó correctamente el quipo ${serie}.` : `se rechazó el quipo ${serie}.`;
+      await EquipoBaja.findOneAndUpdate({_id: id}, {
+        estado: estado,
+        usuario_aprueba: Empleado._id,
+        observacion_aprueba: descripcion ? descripcion : descripcionAlterna
+      }).then(() => {
+        respuesta.title = "Equipo actualizado correctamente.";
+        respuesta.status = "success";
+      }).catch((error) => {
+        logger.error({
+          message: error.message,
+          service: 'actualizarEquiposBaja'
+        });
+      });
+    } catch (error) {
+      logger.error({
+        message: error.message,
+        service: 'actualizarEquiposBaja (try/catch)'
+      });
+      respuesta.title = 'Error en la función para crear el actualizarEquiposBaja (try/catch).'
+    }
+  }
+  return res.status(status).send(respuesta);
+};
+
+export const eliminarMaterial = async (req: Request, res: Response): Promise<Response> => {
+  const Empleado: IEmpleado|any = req.user;
+  const metodo:string|any = req.headers.metodo ? req.headers.metodo : null;
+
+  let status = 404
+  let respuesta = {title: 'Acceso Incorrecto', status: 'error'}
+  
+  if (metodo === 'eliminarEquipoBaja') {
+    try {
+      const idEquipo = req.headers.id;
+      status = 200;
+      await EquipoBaja.findByIdAndDelete({_id: idEquipo, contrata: Empleado.contrata._id}).then(() => {
+        respuesta = {
+          title: 'Equipo eliminado correctamente del registro.',
+          status: 'success'
+        };
+      }).catch((error) => {
+        logger.error({
+          message: error.message,
+          service: 'eliminarEquipoBaja (try/catch)'
+        });
+        respuesta.title = 'No se pudo eliminar el equipo.'
+      })
+    } catch (error) {
+      logger.error({
+        message: error.message,
+        service: 'eliminarEquipoBaja (try/catch)'
+      });
+      respuesta.title = 'Error en la función para crear el eliminarEquipoBaja (try/catch).'
+    }
+  }
+  return res.status(status).send(respuesta);
+};

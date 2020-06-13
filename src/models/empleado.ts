@@ -65,6 +65,7 @@ const empleadoSchema = new Schema({
   },
   carnet: {
     type: String,
+    uppercase: true,
     default: '-'
   },
   estado_empresa: {

@@ -50,7 +50,7 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
       return res.status(401).send("Usuario sin permisos");
     }
   } else if (req.headers.metodo === 'listarUsuario') {
-    await Empleado.findById({_id: nivelUsuario._id})
+    await Empleado.findById({_id: nivelUsuario._id}).populate('contrata')
       .then((usuario) => {
         return res.status(201).json(usuario);
       }).catch((error) => {
@@ -134,6 +134,42 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
         })
         return res.status(400).send('Error obteniendo la lista de tecnicos');
     })
+  } else if (req.headers.metodo === 'listarTecnicosGlobal') {
+    await Empleado.find({'usuario.tipo': 9, 'estado_empresa.activo': true
+      }).populate({path: 'contrata'
+      }).select({ nombre: 1, apellidos: 1, contrata: 1
+      }).sort({'contrata.nombre': 1}).then((data) => {
+        let contratas = [] as Array<string>;
+        let dataTecnicos = [] as Array<any>;
+        if (data.length > 0) {
+          data.map((item:any) => {
+            if (contratas.includes(item.contrata.nombre)) {
+              dataTecnicos.map((element, i) => {
+                if (element.value === item.contrata.nombre) {
+                  dataTecnicos[i].children.push({
+                    value: item._id,
+                    label: item.nombre + ' ' + item.apellidos
+                  })
+                }
+              })
+            } else {
+              contratas.push(item.contrata.nombre);
+              dataTecnicos.push({
+                value: item.contrata.nombre,
+                label: item.contrata.nombre,
+                children: [{
+                  value: item._id,
+                  label: item.nombre + ' ' + item.apellidos
+                }]
+              });
+            };
+          });
+        };
+        return res.send(dataTecnicos);
+      }).catch((error) => {
+        console.log(error);
+      })
+
   } else {
     return res.send('¿Estás Perdido?')
   }

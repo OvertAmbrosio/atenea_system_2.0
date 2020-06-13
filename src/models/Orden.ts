@@ -21,10 +21,10 @@ export interface IOrden extends Document {
   contrata_asignada?: {
     nombre_contrata?: string,
     estado?: string,
-    tecnico_asignado?: {
+    tecnico_asignado?: {//1=asignado,2=pendiente,3=liquidado,4=rechazado
       id?: string,
       nombre_tecnico?: string,
-      estado_orden?: string,
+      estado_orden?: number,
       observacion?: string,
       imagenes?: {
         titulo?: string,
@@ -33,13 +33,20 @@ export interface IOrden extends Document {
       },
       fecha_finalizado?: Date,
       material_usado?: {
+        almacen_actual?: string,
         material_no_seriado?: {
-          id?: string,
+          material?: string,
           cantidad?: number
         },
         material_seriado?: {
-          id?: string,
-        }
+          material?: string,
+          almacen_anterior?: string,
+          serie?: string,
+        },
+        material_baja?: {
+          material?: string,
+          serie?: string,
+        },
       }
     },
     observacion?: string
@@ -133,17 +140,12 @@ const ordenSchema = new Schema({
     },
     tecnico_asignado: {
       id: {
-        type: String,
-        trim: true,
-        default: null
+        type: Schema.Types.ObjectId,
+        ref: 'Empleado'
       },
-      nombre_tecnico: {
-        type: String,
-        trim: true,
-        default: 'Sin asignar.'
-      },
-      estado_orden: {
-        type: String,
+      nombre_tecnico: String,
+      estado_orden: {//1=asignado, 2=pendiente, 3=finalizado, 4=rechazado. saber las que estan por aprobar por que tienen numero 2
+        type: Number,
         trim: true,
         default: null
       },
@@ -161,16 +163,38 @@ const ordenSchema = new Schema({
         default: null
       },
       material_usado: {
+        almacen_actual: {
+          type: Schema.Types.ObjectId,
+          ref: 'Almacene'
+        },
         material_no_seriado: [{
-          id: String,
+          material: {
+            type: Schema.Types.ObjectId,
+            ref: 'Materiale'
+          },
           cantidad: {
             type: Number,
             default: 0
           },
         }],
         material_seriado: [{
-          id: String,
-        }]
+          material: {
+            type: Schema.Types.ObjectId,
+            ref: 'Materiale'
+          },
+          almacen_anterior: {
+            type: Schema.Types.ObjectId,
+            ref: 'Almacene'
+          },
+          serie: String,
+        }],
+        material_baja: [{
+          material: {
+            type: Schema.Types.ObjectId,
+            ref: 'Materiale'
+          },
+          serie: String,
+        }],
       }
     },
     observacion: {
