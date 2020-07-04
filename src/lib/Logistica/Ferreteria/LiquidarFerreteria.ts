@@ -5,11 +5,13 @@ interface IMaterial {
   material: string,
   cantidad: number
 }
-
+/**
+ * @param {string} tipo - 'pendiente', 'rechazado, 'aprobado'
+ */
 //funcion que liquida el material de ferreteria
 //retorna true para las operaciones correctas y false para los errores 
 export default async function LiquidarFerreteria(data: Array<IMaterial>, almacen: string, tipo: string):Promise<boolean> {
-  if (data.length === 0) {
+  if (data.length === 0 || !almacen) {
     return true;
   } else {
     return Promise.all(data.map(async(item) => {
@@ -43,7 +45,7 @@ export default async function LiquidarFerreteria(data: Array<IMaterial>, almacen
           })
           return false;
         });
-      } else {
+      } else if (tipo === 'aprobado') {
         return await Almacen.updateOne({
           _id: almacen, 'ferreteria.material': item.material
         }, {

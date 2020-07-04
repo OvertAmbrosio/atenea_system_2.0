@@ -7,12 +7,18 @@ import logger from '../logger';
  * @param {string} almacenEntrada - Almacen a donde se dirigía el lote
  * @param {string} almacenSalida - Almacen de donde salía el lote
  */
-export default async function AprobarRegistro(lote: Array<ILote>, almacenEntrada: string, almacenSalida: string): Promise<boolean> {
+export default async function AprobarRegistro(lote: Array<ILote>, almacenEntrada: string, almacenSalida: string, tecnico?:boolean): Promise<boolean> {
+  let updateObject:any = {'estado': 'contable'};
+  if(tecnico) {
+    updateObject.fecha_asignado = new Date();
+  } else {
+    updateObject.fecha_recibido = new Date();
+  }
   //funcion que actualiza el equipo en contable
   const EquiposAprobar = async (material:string, series:Array<string>):Promise<boolean> => {
     return await Equipo.updateMany({
       _id: { $in: series } }, {
-      estado: 'contable'
+      $set: updateObject
     }).then(() => {
       return true
     }).catch((error) => {

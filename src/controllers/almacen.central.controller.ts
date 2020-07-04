@@ -10,8 +10,8 @@ import SalidaAlmacen from '../lib/Logistica/SalidaAlmacen';
 import logger from '../lib/logger';
 import { Error } from 'mongoose';
 
-const nivelAdmin = [1,3];
-const nivelLogistica = [1,3,5];
+const nivelAdmin = [1,3,5,6];
+const nivelLogistica = [1,3,5,6,8];
 
 interface IEquiposAlmacen {
   material: {
@@ -35,7 +35,7 @@ export const listarAlmacen = async (req: Request, res: Response): Promise<Respon
   let respuesta = {title: 'Acceso Incorrecto', status: 'error', data: {}, dato: ''}
 
   if (metodo === 'obtenerIdAlmacen') {
-    if (nivelAdmin.includes(nivelUsuario)) {
+    if (nivelLogistica.includes(nivelUsuario)) {
       await Almacen.findOne({tipo: 'IMC'}).then( async(data) => {
         if (data) {
           status = 200;

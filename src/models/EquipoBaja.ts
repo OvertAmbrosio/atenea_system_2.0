@@ -31,8 +31,8 @@ const equipoBajaSchema = new Schema({
     default: 'traslado'
   },
   orden: {
-    type: Schema.Types.ObjectId,
-    ref: 'Ordene'
+    type: String,
+    uppercase: true,
   },
   tecnico: {
     type: Schema.Types.ObjectId,

@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
+import moment from 'moment';
 
+import Tecnico from '../models/Empleado'
 import { IEmpleado } from '../models/Empleado';
 import Almacen from '../models/Almacen';
 import Albaran from '../models/Albaran';
@@ -7,8 +9,8 @@ import Equipo from '../models/Equipo';
 import EquipoBaja from '../models/EquipoBaja';
 import logger from '../lib/logger';
 import SalidaAlmacen from '../lib/Logistica/SalidaAlmacen';
+import Registro from '../models/Registro';
 
-const nivelAdmin = [1,3,5];
 const nivelLogistica = [1,3,5,6,8];
 
 export const listarAlmacen = async (req: Request, res: Response):Promise<Response> => {
@@ -18,7 +20,7 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
   let respuesta = { title: 'Acceso denegado.', status: 'error', dato: '', data: {}};
 
   if (metodo === 'comprobarTecnico') {
-    if (nivelAdmin.includes(nivelUsuario)) {
+    if (nivelLogistica.includes(nivelUsuario)) {
       try {
         const tecnico = String(req.headers.idtecnico);
         await Almacen.findOne({tecnico: tecnico}).then(async(data) => {
@@ -72,7 +74,10 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
         await Almacen.findOne({_id: almacenTecnico}).populate('ferreteria.material').then(async(almacen) => {
           const equiposAlmacen = new Array;
           if (almacen) {
-            await Equipo.find({estado: {$ne: 'liquidado'}, $or: [{almacen_entrada: almacen._id}, {almacen_salida: almacen._id}]}).populate('material').then(async(equipos) => {
+            await Equipo.find({
+              estado: {$ne: 'liquidado'}, 
+              $or: [{almacen_entrada: almacen._id}, {almacen_salida: almacen._id}]
+            }).populate('material').sort('estado').then(async(equipos) => {
               const materiales = [] as Array<any>;
               const ObtenerMateriales = equipos.map((item:any) => {
                 if (!materiales.some(material => material.nombre === item.material.nombre)) {
@@ -160,7 +165,7 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
       })
     }
   } else if (metodo === 'almacenTecnico') {
-    await Almacen.findOne({tecnico: Empleado._id}).populate('ferreteria.material').then(async(almacen) => {
+    await Almacen.findOne({tecnico: Empleado._id}).populate('ferreteria.material').sort('updatedAt').then(async(almacen) => {
       if (almacen) {
         //los equipos liquidados tienen el almacen del tec. en almacen_salida y almacen_entrada en null
         await Equipo.find({almacen_entrada: almacen?._id}).populate({
@@ -200,7 +205,177 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
         service: 'almacenTecnico secundario(findOne)'
       })
     })
-  } 
+  } else if (metodo === 'buscarRegistroFechas') {
+    try {
+      const fechaInicio: string = String(req.headers.fechainicio);
+      const fechaFin: string = String(req.headers.fechafin); 
+      
+      await Registro.find({createdAt: { 
+        $gte: moment(fechaInicio).format('YYYY-MM-DD HH:mm') , 
+        $lte: moment(fechaFin).format('YYYY-MM-DD HH:mm') } 
+      }).populate('tecnico gestor').populate({
+        path: 'material_usado.material_no_seriado.material'
+      }).populate({
+        path: 'material_usado.material_seriado.material'
+      }).populate({
+        path: 'material_usado.material_baja.material'
+      }).then((datos) => {
+        respuesta = {
+          title: 'Busqueda correcta.',
+          status: 'success',
+          data: datos,
+          dato: ''
+        };
+      }).catch((error) => {
+        logger.error({
+          message: error.message,
+          service: 'buscarRegistroCodigo(find)'
+        });
+        respuesta.title = 'Error en la busqueda.'
+      })
+    } catch (error) {
+      logger.error({
+        message: error.message,
+        service: 'buscarRegistroFechas(try/catch)'
+      });
+      respuesta.title = 'Error obteniendo datos del cliente.'
+    }
+  } else if (metodo === 'buscarRegistroCodigo') {
+    try {
+      const { requerimiento } = req.headers;
+      await Registro.find({codigo_requerimiento: requerimiento}).populate('tecnico gestor').populate({
+          path: 'material_usado.material_no_seriado.material'
+        }).populate({
+          path: 'material_usado.material_seriado.material'
+        }).populate({
+          path: 'material_usado.material_baja.material'
+        }).then((datos) => {
+          respuesta = {
+            title: 'Busqueda correcta.',
+            status: 'success',
+            data: datos,
+            dato: ''
+          };
+        }).catch((error) => {
+          logger.error({
+            message: error.message,
+            service: 'buscarRegistroCodigo(find)'
+          });
+          respuesta.title = 'Error en la busqueda.'
+        })
+    } catch (error) {
+      logger.error({
+        message: error.message,
+        service: 'buscarRegistroCodigo(try/catch)'
+      });
+      respuesta.title = 'Error obteniendo datos del cliente.'
+    }
+  } else if (metodo === 'listaAlbaranPendiente') {
+    await Almacen.findOne({tecnico: Empleado._id}).then(async(almacen) => {
+      if (almacen) {
+        await Albaran.find({almacen_entrada: almacen._id, estado_registro: 'pendiente'}).populate({
+          path: 'usuario_entrega',
+          select: 'nombre apellidos'
+        }).populate({
+          path: 'lote.material',
+          select: 'nombre seriado'
+        }).select('almacen_entrada createdAt lote observacion_salida usuario_entrega').sort('createdAt').then((data) => {
+          respuesta = {
+            title: 'Busqueda correcta',
+            status: 'success',
+            data: data,
+            dato: ''
+          }
+        }).catch((error) => {
+          respuesta.title = error.message;
+          respuesta.status = 'danger';
+          logger.error({
+            message: error.message,
+            service: 'listaAlbaranPendiente (albaran find)'
+          });
+        })
+      } else {
+        respuesta.title = 'No se encuentra el almacen.';
+        respuesta.status = 'danger';
+      }
+    }).catch((error) => {
+      respuesta.title = error.message;
+      respuesta.status = 'danger';
+      logger.error({
+        message: error.message,
+        service: 'listaAlbaranPendiente (almacen findone)'
+      });
+    })
+  } else if (metodo === 'buscarAlmacenSecundario') {
+    try {
+      const carnet = String(req.headers.carnet).toUpperCase();
+      await Tecnico.findOne({carnet: carnet}).then(async(tecData) => {
+        if (tecData !== null) {
+          if(String(tecData._id) === String(Empleado._id)) {
+            respuesta.title = '¿Quieres darte material a ti mismo?';
+          } else {
+            await Almacen.findOne({tecnico: tecData._id}).then((almTecnico) => {
+              if (almTecnico !== null) {
+                respuesta = {
+                  title: 'Busqueda correcta.',
+                  status: 'success',
+                  dato: '',
+                  data: {
+                    nombre: `${tecData.nombre} ${tecData.apellidos}`,
+                    id: almTecnico._id
+                  }
+                }
+              } else {
+                respuesta.title = 'El técnico no tiene un almacen disponible.'
+              }
+            }).catch((error) => {//en en busqueda del almacen
+              respuesta.title = 'Error buscando el almacen';
+              logger.error({
+                message: error.message,
+                service: 'buscarAlmacenSecundario (Almacen.findOne)'
+              })
+            })
+          }
+        } else {
+          respuesta.title = 'Técnico no encontrado.'
+        }
+      }).catch((error) => {//error buscando al tecnico
+        respuesta.title = 'Error buscando el tecnico';
+        logger.error({
+          message: error.message,
+          service: 'buscarAlmacenSecundario (Tecnico.findOne)'
+        })
+      })
+    } catch (error) {
+      respuesta.title = 'Metodo incorrecto';
+      logger.error({
+        message: error.message,
+        service: 'buscarAlmacenSecundario (try/catch)'
+      })
+    }
+  } else if (metodo === 'buscarAlmacenPrimario') {
+    await Almacen.findOne({contrata: Empleado.contrata._id, tipo: 'IMP'}).then(almContrata => {
+      if (almContrata) {
+        respuesta = {
+          title: 'Busqueda correcta.',
+          status: 'success',
+          dato: '',
+          data: {
+            nombre: Empleado.contrata.nombre,
+            id: almContrata._id
+          }
+        }
+      } else {
+        respuesta.title = 'Almacen Primario no encontrado.'
+      }
+    }).catch((error) => {
+      logger.error({
+        message: error.message,
+        service: 'buscarAlmacenPrimario (findone)'
+      }); 
+      respuesta.title = 'Error buscando la contrata.'
+    })
+  }
 
   return res.send(respuesta);
 };
@@ -213,9 +388,9 @@ export const crearRegistro = async (req: Request, res: Response): Promise<Respon
   let respuesta = {title: 'Acceso Incorrecto', status: 'error', data: [] as Array<any>}
   if (metodo === 'trasladoInventario') {
     try {
-      const { almacenSalida, almacenEntrada, dataOrden, fechaLote, descripcionTraslado } = req.body;
+      const { tecnicoSalida, tecnicoEntrada, dataOrden, fechaLote, descripcionTraslado } = req.body;
       const descripcionAlterna = `traslado de lote de ${dataOrden.length} materiales.`;
-      await SalidaAlmacen(dataOrden, almacenSalida, almacenEntrada).then(async(data) => {
+      await SalidaAlmacen(dataOrden, tecnicoSalida, tecnicoEntrada).then(async(data) => {
         const operacionesFallidas =  data.filter((item) => item.status === false);
 
         const nuevoAlbaran = new Albaran({
@@ -223,8 +398,8 @@ export const crearRegistro = async (req: Request, res: Response): Promise<Respon
           estado_registro: 'pendiente',
           lote: data,
           estado_operacion: operacionesFallidas.length > 0 ? 'error' : 'success',
-          almacen_salida: almacenSalida,
-          almacen_entrada: almacenEntrada,
+          almacen_salida: tecnicoSalida,
+          almacen_entrada: tecnicoEntrada,
           usuario_entrega: Empleado._id,
           observacion_salida: descripcionTraslado ? descripcionTraslado : descripcionAlterna,
           fecha_salida: fechaLote
@@ -233,7 +408,7 @@ export const crearRegistro = async (req: Request, res: Response): Promise<Respon
         const titulo = operacionesFallidas.length > 0 ? 
           `Se encontrarón ${data.length} materiales, ${operacionesFallidas.length} no se almacenaron correctamente.` 
           : 
-          `Se registró correctamente la devolucion de ${data.length} materiales.`;
+          `Se registró correctamente el traslado de ${data.length} materiales.`;
 
           await nuevoAlbaran.save().then(() => {
             status = 200;

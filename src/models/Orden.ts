@@ -1,6 +1,13 @@
 import { model, Schema, Document } from 'mongoose';
 import HfcDetalle, { IHfcDetalle } from './HfcDetalle';
-import CobreDetalle, { ICobreDetalle } from './CobreDetalle'
+import CobreDetalle, { ICobreDetalle } from './CobreDetalle';
+
+interface IImagen {
+  titulo: string,
+  url: string,
+  public_id: string,
+  id: string
+};
 
 export interface IOrden extends Document {
   codigo_requerimiento: string,
@@ -10,7 +17,12 @@ export interface IOrden extends Document {
   direccion?: string,
   telefono?: string,
   distrito?: string,
+  reiterada?: string,
   tipo?: string,
+  referencia?:string,
+  imagen_referencia: {
+    [key:string]: IImagen
+  },
   hfc_detalle: IHfcDetalle,
   cobre_detalle: ICobreDetalle,
   estado_sistema?: {
@@ -19,7 +31,7 @@ export interface IOrden extends Document {
     observacion?: string
   },
   contrata_asignada?: {
-    nombre_contrata?: string,
+    contrata?: string|any,
     estado?: string,
     tecnico_asignado?: {//1=asignado,2=pendiente,3=liquidado,4=rechazado
       id?: string,
@@ -54,7 +66,7 @@ export interface IOrden extends Document {
   detalle_registro?: [{
     fecha_actualizado?: Date,
     estado?: string,
-    contrata?: string
+    contrata?: string|any,
     usuario?: string,
     tecnico?: string,
     observacion?: string,
@@ -62,8 +74,10 @@ export interface IOrden extends Document {
       titulo?: string,
       url?: string,
       public_id?: string
-    }
-  }]
+    },
+    codigo_subido?: number
+  }],
+  asignado: boolean
 };
 
 const ordenSchema = new Schema({
@@ -77,12 +91,12 @@ const ordenSchema = new Schema({
   codigo_segmento: {
     type: String,
     trim: true,
-    default: null
+    default: '-'
   },
   detalle_motivo: {
     type: String,
     trim: true,
-    default: null
+    default: '-'
   },
   fecha_registro: {
     type: Date,
@@ -90,24 +104,52 @@ const ordenSchema = new Schema({
   },
   direccion: {
     type: String,
-    default: null
+    default: '-'
   },
   telefono: {
     type: String,
     trim: true,
-    default: null
+    default: '-'
   },
   distrito: {
     type: String,
     trim: true,
     uppercase: true,
-    default: null
+    default: '-'
+  },
+  reiterada: {
+    type: String,
+    trim: true,
+    default: '-'
+  },
+  referencia: {
+    type: String,
+    trim: true,
+    default: '-'
   },
   tipo: {
     type: String,
     trim: true,
     required: true,
     default: null
+  },
+  imagen_referencia: {
+    titulo: {
+      type: String,
+      default: null
+    },
+    url: {
+      type: String,
+      default: null
+    },
+    id: {
+      type: String,
+      default: null
+    },
+    public_id: {
+      type: String,
+      default: null
+    },
   },
   hfc_detalle: HfcDetalle,
   cobre_detalle: CobreDetalle,
@@ -128,10 +170,9 @@ const ordenSchema = new Schema({
     }
   },
   contrata_asignada: {
-    nombre_contrata: {
-      type: String,
-      trim: true,
-      default: null
+    contrata: {
+      type: Schema.Types.ObjectId,
+      ref: 'Contrata'
     },
     estado: {
       type: String,
@@ -143,7 +184,10 @@ const ordenSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Empleado'
       },
-      nombre_tecnico: String,
+      nombre_tecnico: {
+        type: String,
+        default: 'Sin asignar.'
+      },
       estado_orden: {//1=asignado, 2=pendiente, 3=finalizado, 4=rechazado. saber las que estan por aprobar por que tienen numero 2
         type: Number,
         trim: true,
@@ -163,7 +207,7 @@ const ordenSchema = new Schema({
         default: null
       },
       material_usado: {
-        almacen_actual: {
+        almacen_actual: {//almacen del tecnico
           type: Schema.Types.ObjectId,
           ref: 'Almacene'
         },
@@ -213,10 +257,8 @@ const ordenSchema = new Schema({
       default: '-',
     },
     contrata: {
-      type: String,
-      trim: true,
-      uppercase: true,
-      default: '-',
+      type: Schema.Types.ObjectId,
+      ref: 'Contrata'
     },
     usuario: { //email
       type: String,
@@ -235,7 +277,11 @@ const ordenSchema = new Schema({
       titulo: String,
       url: String,
       public_id: String
-    }]
+    }],
+    codigo_subido: {
+      type: Number,
+      default: 0
+    }
   }],
   asignado: {
     type: Boolean,

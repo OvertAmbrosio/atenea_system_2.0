@@ -5,10 +5,10 @@ import logger from '../logger';
 
 interface IMaterialData {
   material: string,//objeto id
-  nombre: string,
-  cantidad: number, 
-  seriado: boolean,
-  series: Array<string>
+  nombre: string,//nombre del objeto
+  cantidad: number, //centidad de ferreteria, length de series
+  seriado: boolean, // falso ferreteria, true equipos
+  series: Array<string> //series para equipos
 }
 /**
  * @param {Array} data - data de materiales a guardar

@@ -55,7 +55,8 @@ const albaranSchema = new Schema({
   },
   almacen_salida: {
     type: Schema.Types.ObjectId,
-    ref: 'Almacene'
+    ref: 'Almacene',
+    default: null
   },
   usuario_entrega: {
     type: Schema.Types.ObjectId,

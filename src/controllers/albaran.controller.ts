@@ -8,16 +8,15 @@ import DeshacerEntrada from '../lib/Logistica/DeshacerEntrada';
 import DeshacerSalida from '../lib/Logistica/DeshacerSalida';
 import AprobarRegistro from '../lib/Logistica/AprobarRegistro';
 
-const nivelAdmin = [1,3,5];
-const nivelJefe = [1,3,5,6]
-const nivelLogistica = [1,3,5,6,8];
+const jefes = [1,3]
+const nivelAdmin = [1,3,5,6,8];
+const nivelLogistica = [1,3,5,6,8,9];
 
 export const listarRegistro = async (req: Request, res: Response): Promise<Response> => {
   const Emp: IEmpleado|any = req.user;
   const nivelUsuario = Emp.usuario.tipo;
   const metodo = req.headers.metodo;
 
-  let status = 404
   let respuesta = {title: 'Acceso Incorrecto', status: 'error', data: [] as Array<any>}
 
   if(metodo === 'registroCentralEntrada') {//buscar por fechas de las ordenes de entrada
@@ -35,14 +34,12 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
             createdAt: -1
           }).populate('almacen_entrada').populate({path: 'usuario_entrega', select: 'nombre apellidos'}).populate('lote.material')
             .then((data) => {
-              status = 200;
               respuesta = {
                 title: 'Busqueda Correcta.',
                 status: 'success',
                 data: data
               }
           }).catch((error) => {
-            status = 200;
             respuesta = {
               title: 'Error en la busqueda.',
               status: 'error',
@@ -86,14 +83,12 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
             select: 'nombre apellidos'
           }).populate('lote.material')
             .then((data) => {
-              status = 200;
               respuesta = {
                 title: 'Busqueda Correcta.',
                 status: 'success',
                 data: data
               }
           }).catch((error) => {
-            status = 200;
             respuesta = {
               title: 'Error en la busqueda.',
               status: 'error',
@@ -132,14 +127,12 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
         select: 'nombre apellidos'
       }).populate('lote.material')
         .then((data) => {
-          status = 200;
           respuesta = {
             title: 'Busqueda Correcta.',
             status: 'success',
             data: data
           }
       }).catch((error) => {
-        status = 200;
         respuesta = {
           title: 'Error en la busqueda.',
           status: 'error',
@@ -151,7 +144,7 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
     if (nivelAdmin.includes(nivelUsuario)) {
       const almacen: string = String(req.headers.almacen);
       await Albaran.find({
-        tipo: 'salida', 
+        $or: [{tipo: 'salida'}, {tipo: 'traslado'}], 
         almacen_entrada: almacen,
         estado_registro: 'PENDIENTE'
       }).sort({
@@ -171,14 +164,12 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
         select: 'nombre apellidos'
       }).populate('lote.material')
         .then((data) => {
-          status = 200;
           respuesta = {
             title: 'Busqueda Correcta.',
             status: 'success',
             data: data
           }
       }).catch((error) => {
-        status = 200;
         respuesta = {
           title: 'Error en la busqueda.',
           status: 'error',
@@ -215,14 +206,12 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
             select: 'nombre apellidos'
           }).populate('lote.material')
             .then((data) => {
-              status = 200;
               respuesta = {
                 title: 'Busqueda Correcta.',
                 status: 'success',
                 data: data
               }
           }).catch((error) => {
-            status = 200;
             respuesta = {
               title: 'Error en la busqueda.',
               status: 'error',
@@ -263,14 +252,12 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
         select: 'nombre apellidos'
       }).populate('lote.material')
         .then((data) => {
-          status = 200;
           respuesta = {
             title: 'Busqueda Correcta.',
             status: 'success',
             data: data
           }
       }).catch((error) => {
-        status = 200;
         respuesta = {
           title: 'Error en la busqueda.',
           status: 'error',
@@ -309,14 +296,13 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
             select: 'nombre apellidos'
           }).populate('lote.material')
             .then((data) => {
-              status = 200;
+              console.log(almacen)
               respuesta = {
                 title: 'Busqueda Correcta.',
                 status: 'success',
                 data: data
               }
           }).catch((error) => {
-            status = 200;
             console.log(error);
             respuesta = {
               title: 'Error en la busqueda.',
@@ -334,7 +320,6 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
     }
   } else if (metodo === 'devolucionCentral') {//buscar ordenes devolución(central) pendientes
     if (nivelAdmin.includes(nivelUsuario)) {
-      status = 200;
       try {
         const almacen: string = String(req.headers.almacen);
         await Albaran.find({
@@ -358,14 +343,12 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
           select: 'nombre apellidos'
         }).populate('lote.material')
           .then((data) => {
-            status = 200;
             respuesta = {
               title: 'Busqueda Correcta.',
               status: 'success',
               data: data
             }
         }).catch((error) => {
-          status = 200;
           console.log(error);
           respuesta = {
             title: 'Error en la busqueda.',
@@ -383,7 +366,6 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
     }
   } else if (metodo === 'registroCentralDevolucion') {//buscar ordenes devolución(central) por fechas
     if (nivelAdmin.includes(nivelUsuario)) {
-      status = 200;
       try {
         const almacen: string = String(req.headers.almacen);
         const fechaInicio: string|any = req.headers.fechainicio;
@@ -411,14 +393,12 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
           select: 'nombre apellidos'
         }).populate('lote.material')
           .then((data) => {
-            status = 200;
             respuesta = {
               title: 'Busqueda Correcta.',
               status: 'success',
               data: data
             }
         }).catch((error) => {
-          status = 200;
           console.log(error);
           respuesta = {
             title: 'Error en la busqueda.',
@@ -435,7 +415,6 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
       }
     }
   } else if (metodo === 'pendientesTraslado') {
-    status = 200;
     try {
       await Empleado.find({contrata: Emp.contrata._id}).select('_id').then( async(data) => {
         const usuarios = data.map(item => item._id);
@@ -443,10 +422,17 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
           createdAt: -1
         }).populate({
           path: 'almacen_entrada',
-          select: 'tecnico',
+          select: 'tecnico tipo',
           populate: {
             path: 'tecnico',
             select: 'nombre apellidos'
+          }
+        }).populate({
+          path: 'almacen_entrada',
+          select: 'contrata tipo',
+          populate: {
+            path: 'contrata',
+            select: 'nombre'
           }
         }).populate({
           path: 'almacen_salida',
@@ -463,14 +449,12 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
           select: 'nombre apellidos'
         }).populate('lote.material')
           .then((registros) => {
-            status = 200;
             respuesta = {
               title: 'Busqueda Correcta.',
               status: 'success',
               data: registros
             }
         }).catch((error) => {
-          status = 200;
           console.log(error);
           respuesta = {
             title: 'Error en la busqueda.',
@@ -487,7 +471,6 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
       })
     }
   } else if (metodo === 'registroTraslado') {
-    status = 200;
     try {
       const fechaInicio: string|any = req.headers.fechainicio;
       const fechaFin: string|any = req.headers.fechafin; 
@@ -504,10 +487,17 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
           createdAt: -1
         }).populate({
           path: 'almacen_entrada',
-          select: 'tecnico',
+          select: 'tecnico tipo',
           populate: {
             path: 'tecnico',
             select: 'nombre apellidos'
+          }
+        }).populate({
+          path: 'almacen_entrada',
+          select: 'contrata tipo',
+          populate: {
+            path: 'contrata',
+            select: 'nombre'
           }
         }).populate({
           path: 'almacen_salida',
@@ -524,14 +514,12 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
           select: 'nombre apellidos'
         }).populate('lote.material')
           .then((registros) => {
-            status = 200;
             respuesta = {
               title: 'Busqueda Correcta.',
               status: 'success',
               data: registros
             }
         }).catch((error) => {
-          status = 200;
           console.log(error);
           respuesta = {
             title: 'Error en la busqueda.',
@@ -549,7 +537,6 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
     }
   } else if (metodo === 'buscarEquipo') {
     try {
-      status = 200;
       const almacen = String(req.headers.almacen);//serie del equipo
       await Albaran.find({'lote.series': {$in: [almacen]}, tipo: {$ne: 'entrada'}
       }).select('tipo almacen_entrada almacen_salida estado_registro createdAt').populate({
@@ -575,7 +562,7 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
     }   
   }
 
-  return res.status(status).send(respuesta);
+  return res.send(respuesta);
 };
 
 export const actualizarRegistro = async (req: Request, res: Response): Promise<Response> => {
@@ -588,9 +575,10 @@ export const actualizarRegistro = async (req: Request, res: Response): Promise<R
   let respuesta = {title: 'Acceso Incorrecto', status: 'error', data: [] as Array<any>}
   
   if (metodo === 'deshacerEntrada') {
-    if (nivelAdmin.includes(nivelUsuario)) {
+    if (jefes.includes(nivelUsuario)) {
       let errores = 0;
       try {
+        status = 200;
         const data = req.body;
         const estados = ['success', 'error'];
 
@@ -603,7 +591,6 @@ export const actualizarRegistro = async (req: Request, res: Response): Promise<R
         });
 
         await Promise.all(revertirInventario).then(async() => {
-          status = 200
           if (errores == 0) {
             await Albaran.findByIdAndUpdate({_id: data._id}, {
               estado_operacion: 'deshacer',
@@ -635,9 +622,12 @@ export const actualizarRegistro = async (req: Request, res: Response): Promise<R
         });
         console.log(error);
       }
+    } else {
+      status = 200;
+      respuesta.title="No tienes los permisos necesarios."
     }
   } else if (metodo === 'deshacerSalida') {
-    if (nivelJefe.includes(nivelUsuario)) {
+    if (nivelAdmin.includes(nivelUsuario)) {
       try {
         const { almacen } = req.body;
         const estados = ['success', 'error'];
@@ -646,7 +636,6 @@ export const actualizarRegistro = async (req: Request, res: Response): Promise<R
           if (data && data.almacen_salida) {
             if (estados.includes(data.estado_operacion) && tipos.includes(data.estado_registro)) {
               await DeshacerSalida(data.lote, data.almacen_entrada, data.almacen_salida).then(async(datos) => {
-                status = 200;
                 await Albaran.findByIdAndUpdate({_id: almacen}, {
                   lote: datos,
                   estado_operacion: 'deshacer',
@@ -667,19 +656,16 @@ export const actualizarRegistro = async (req: Request, res: Response): Promise<R
                 respuesta.title = "Error actualizando el inventario."
               });
             } else {
-              status = 200;
               respuesta.title = 'Esa operación no se puede deshacer o ya está deshecha.';
               respuesta.status = 'warning';
             }
           } else {
-            status = 200;
             respuesta.title = 'No se encontraron datos del registro.';
             respuesta.status = 'warning';
           }
         //error en la busqueda
         }).catch((error) => {
           console.log(error);
-          status = 200;
           respuesta.title = "Error actualizando el registro.";
           logger.error({
             message: error.message,
@@ -696,16 +682,16 @@ export const actualizarRegistro = async (req: Request, res: Response): Promise<R
       }
     }
   } else if (metodo === 'actualizarRegistro') {
-    if (nivelJefe.includes(nivelUsuario)) {
+    if (nivelLogistica.includes(nivelUsuario)) {
       try {
+        //almacen == id del albaran
+        status = 200;
         const { almacen, observacion, aprobado } = req.body;
         await Albaran.findById({_id: almacen}).then(async(data) => {
-          status = 200;
           if (data && data.almacen_salida) {
             if (estados.includes(data.estado_operacion) && data.estado_registro === 'PENDIENTE') {
               if (aprobado) {
                 await AprobarRegistro(data.lote, data.almacen_entrada, data.almacen_salida).then(async() => {
-                  status = 200;
                   const obs = observacion ? observacion : `operación aprobada por ${Empleado.nombre} ${Empleado.apellidos}`
                   await Albaran.findByIdAndUpdate({_id: almacen}, {
                     usuario_confirma: Empleado._id,
@@ -725,7 +711,6 @@ export const actualizarRegistro = async (req: Request, res: Response): Promise<R
                 })
               } else {
                 await DeshacerSalida(data.lote, data.almacen_entrada, data.almacen_salida).then(async(datos) => {
-                  status = 200;
                   const obs = observacion ? observacion : `operación rechazada por ${Empleado.nombre} ${Empleado.apellidos}`
                   await Albaran.findByIdAndUpdate({_id: almacen}, {
                     lote: datos,
@@ -757,7 +742,6 @@ export const actualizarRegistro = async (req: Request, res: Response): Promise<R
         //error en la busqueda
         }).catch((error) => {
           console.log(error);
-          status = 200;
           respuesta.title = "Error actualizando el registro.";
           logger.error({
             message: error.message,
@@ -778,4 +762,90 @@ export const actualizarRegistro = async (req: Request, res: Response): Promise<R
   }
 
   return res.status(status).send(respuesta);
+}
+
+export const registroTecnico = async (req: Request, res: Response): Promise<Response> => {
+  const Empleado: IEmpleado|any = req.user;
+  const nivelUsuario = Empleado.usuario.tipo;
+  const metodo = req.headers.metodo;
+  const estados = ['success', 'error'];
+  let respuesta = {title: 'Acceso Incorrecto', status: 'danger', data: [] as Array<any>}
+  
+  if (metodo === 'actualizarRegistro') {
+    if (nivelLogistica.includes(nivelUsuario)) {
+      try {
+        //albaran == id del albaran
+        const { albaran, observacion, aprobado } = req.body;
+        await Albaran.findById({_id: albaran}).then(async(data) => {
+          if (data && data.almacen_salida) {
+            if (estados.includes(data.estado_operacion) && data.estado_registro === 'PENDIENTE') {
+              if (aprobado) {
+                await AprobarRegistro(data.lote, data.almacen_entrada, data.almacen_salida, true).then(async() => {
+                  const obs = observacion ? observacion : `operación aprobada por ${Empleado.nombre} ${Empleado.apellidos}`
+                  await Albaran.findByIdAndUpdate({_id: albaran}, {
+                    usuario_confirma: Empleado._id,
+                    fecha_confirmacion: new Date(),
+                    estado_registro: 'aprobado',
+                    observacion_entrada: obs
+                  }).then(() => {
+                    respuesta.title = "Operación realizada con exito.";
+                    respuesta.status = 'success';
+                  }).catch((error) => {
+                    logger.error({
+                      message:error.message,
+                      service: 'actualizarRegistro(findByIdAndUpdate)'
+                    });
+                    respuesta.title = "Error actualizando el registro."
+                  })
+                })
+              } else {
+                await DeshacerSalida(data.lote, data.almacen_entrada, data.almacen_salida).then(async(datos) => {
+                  const obs = observacion ? observacion : `operación rechazada por ${Empleado.nombre} ${Empleado.apellidos}`
+                  await Albaran.findByIdAndUpdate({_id: albaran}, {
+                    lote: datos,
+                    usuario_confirma: Empleado._id,
+                    fecha_confirmacion: new Date(),
+                    estado_registro: 'rechazado',
+                    observacion_entrada: obs
+                  }).then(() => {
+                    respuesta.title = "Operación realizada con exito.";
+                    respuesta.status = 'success';
+                  }).catch((error) => {
+                    logger.error({
+                      message:error.message,
+                      service: 'actualizarRegistro(findByIdAndUpdate)'
+                    });
+                    respuesta.title = "Error actualizando el registro."
+                  })
+                //errores funcion deshacer
+                }).catch(() => {
+                  respuesta.title = "Error actualizando el inventario."
+                });
+              }
+            } else {
+              respuesta.title = 'Esa operación no se puede deshacer o ya está deshecha.'
+            }
+          } else {
+            respuesta.title = "No se encontraron datos del registro."
+          }
+        //error en la busqueda
+        }).catch((error) => {
+          respuesta.title = "Error actualizando el registro.";
+          logger.error({
+            message: error.message,
+            service: 'actualizarRegistro(findById)'
+          });
+        })
+      } catch (error) {
+        logger.error({
+          message: error.message,
+          service: 'actualizarRegistro (try/catch)'
+        });
+      }
+    }
+  } else {
+    respuesta.title = "Metodo incorrecto"
+  }
+
+  return res.send(respuesta);
 }

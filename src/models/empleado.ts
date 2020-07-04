@@ -8,7 +8,7 @@ export interface IEmpleado extends Document {
   apellidos: string;
   fecha_nacimiento?: Date;
   cargo?: string;
-  contrata?: string|Types.ObjectId;
+  contrata: string|Types.ObjectId;
   documento_identidad?: {
     tipo?: boolean,
     numero?: string

@@ -9,5 +9,5 @@ router.get('', listarEmpleados)
       .post('', crearEmpleado)
       .put('', actualizarEmpleado)
       .patch('', cambiarPassword)
-
+      .put('/app', cambiarPassword)
 export default router;

@@ -6,11 +6,13 @@ interface IMaterial {
   almacen_anterior: string,
   serie: string
 }
-
+/**
+ * @param {string} tipo - 'pendiente', 'rechazado, 'aprobado'
+ */
 //funcion que liquida el equipo
 //retorna true para las operaciones correctas y false para los errores 
-export default async function LiquidarFerreteria(data: Array<IMaterial>, almacen_tecnico: string, tipo: string):Promise<boolean> {
-  if (data.length === 0) {
+export default async function LiquidarEquipo(data: Array<IMaterial>, almacen_tecnico: string, tipo: string):Promise<boolean> {
+  if (data.length === 0 || !almacen_tecnico) {
     return true;
   } else {
     return Promise.all(data.map(async(item) => {
@@ -28,7 +30,7 @@ export default async function LiquidarFerreteria(data: Array<IMaterial>, almacen
         })
       } else if (tipo === 'rechazado') {
         return await Equipo.findOneAndUpdate({_id: item.serie}, {
-          estado: 'traslado',
+          estado: 'contable',
           almacen_salida: item.almacen_anterior,
           almacen_entrada: almacen_tecnico
         }).then(() => true).catch((error) => {
@@ -38,7 +40,7 @@ export default async function LiquidarFerreteria(data: Array<IMaterial>, almacen
           });
           return false;
         })
-      } else {
+      } else if (tipo === 'aprobado') {
         return await Equipo.findOneAndUpdate({_id: item.serie}, {
           estado: 'liquidado',
           almacen_salida: almacen_tecnico,

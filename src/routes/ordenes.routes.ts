@@ -2,9 +2,10 @@ import { Router } from 'express';
 
 const router:Router = Router();
 
-import { listarOrden, guardarOrden, actualizarOrden, editarOrden } from '../controllers/ordenes.controller';
+import { listarOrden, ordenDetalle, guardarOrden, actualizarOrden, editarOrden } from '../controllers/ordenes.controller';
 
 router.get('', listarOrden)
+      .get('/detalle', ordenDetalle)
       .post('', guardarOrden)
       .patch('', actualizarOrden)
       .put('', editarOrden)

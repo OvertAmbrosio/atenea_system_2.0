@@ -8,6 +8,7 @@ router.get('/session', session);
 router.post('/loginTecnico', accederTecnico)
 router.post('/acceder', acceder);
 router.patch('/cerrarSesion', cerrarSesion);
+router.put('/cerrarSesion/app', cerrarSesion);
 router.patch('/configuraciones', configuraciones);
 
 

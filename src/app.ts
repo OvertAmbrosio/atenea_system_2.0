@@ -1,5 +1,5 @@
 import express from 'express';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import helmet from 'helmet';
 import favicon from 'serve-favicon'
 import morgan from 'morgan';
@@ -57,6 +57,13 @@ app.use(express.json({limit: '10mb'}));
 app.use(multer({storage}).array('orden_imagen'));
 app.use(passport.initialize());
 passport.use(passportMiddleware);
+//routes logs
+app.get('/api/logger/usuario/error', function(req, res) {
+  res.sendFile( path.join(__dirname, 'logs/error-log-api.log'))
+})
+app.get('/api/logger/usuario/info', function(req, res) {
+  res.sendFile( path.join(__dirname, 'logs/info-log-api.log'))
+})
 //routes
 app.use('/api/auth', authRoutes); 
 app.use('/api/empleados', passport.authenticate('jwt', { session: false }), empleadosRoutes);
@@ -67,10 +74,6 @@ app.use('/api/inventario', passport.authenticate('jwt', { session: false }), alb
 app.use('/api/inventario', passport.authenticate('jwt', { session: false }), almacenCentralRoutes);
 app.use('/api/inventario', passport.authenticate('jwt', { session: false }), almacenPrimarioRoutes);
 app.use('/api/inventario', passport.authenticate('jwt', { session: false }), almacenSecundarioRoutes);
-
-
-
-
 
 
 export default app;

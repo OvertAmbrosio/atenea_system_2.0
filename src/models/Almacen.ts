@@ -55,7 +55,7 @@ const almacenSchema = new Schema({
     default: null
   },
   tecnico: {
-    type: Schema. Types.ObjectId,
+    type: Schema.Types.ObjectId,
     ref: 'Empleado',
     default: null
   }

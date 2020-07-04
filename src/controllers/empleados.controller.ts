@@ -5,6 +5,7 @@ import Empleado, { IEmpleado } from '../models/Empleado';
 
 import { ValidarRegistro } from '../validations';
 import logger from '../lib/logger';
+import Almacen from '../models/Almacen';
 
 const nivelJefes = [2,3,4];
 const nivelAdministrativo = [1,2,3,4];
@@ -36,7 +37,7 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
           return res.status(400).send('Error obteniendo la lista de usuario');
       })
     } else if (tipoUsuario === 6) {
-      await Empleado.find({"usuario.tipo": { $gt: tipoUsuario}, "contrata.nombre": nivelUsuario.contrata.nombre}).select('usuario nombre apellidos').sort({"usuario.tipo": -1})
+      await Empleado.find({"usuario.tipo": { $gt: tipoUsuario}, "contrata": nivelUsuario.contrata._id}).select('usuario nombre apellidos').sort({"usuario.tipo": -1})
         .then((usuarios) => {
           return res.status(201).json(usuarios);
       }).catch((error) => {
@@ -66,7 +67,7 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
       }).populate({
         path: 'contrata',
         select: {nombre: 1}
-      }).sort({'usuario.tipo' : 'descending'
+      }).sort({'usuario.tipo' : 'descending', 'contrata': 'descending'
       }).select({
           'usuario.password': 0, 
           'usuario.imagen_perfil': 0,
@@ -92,7 +93,7 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
     } else if (tipoUsuario === 6){
       await Empleado.find({
           'usuario.tipo': {$gt: tipoUsuario}, 
-          "contrata.nombre": nivelUsuario.contrata.nombre
+          "contrata": nivelUsuario.contrata._id
         }).sort({'usuario.tipo' : 'descending'
         }).select({
             'usuario.password': 0, 
@@ -138,14 +139,14 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
     await Empleado.find({'usuario.tipo': 9, 'estado_empresa.activo': true
       }).populate({path: 'contrata'
       }).select({ nombre: 1, apellidos: 1, contrata: 1
-      }).sort({'contrata.nombre': 1}).then((data) => {
+      }).sort({'contrata.apellidos': 1}).then((data) => {
         let contratas = [] as Array<string>;
         let dataTecnicos = [] as Array<any>;
         if (data.length > 0) {
           data.map((item:any) => {
             if (contratas.includes(item.contrata.nombre)) {
               dataTecnicos.map((element, i) => {
-                if (element.value === item.contrata.nombre) {
+                if (element.value === item.contrata._id) {
                   dataTecnicos[i].children.push({
                     value: item._id,
                     label: item.nombre + ' ' + item.apellidos
@@ -155,7 +156,7 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
             } else {
               contratas.push(item.contrata.nombre);
               dataTecnicos.push({
-                value: item.contrata.nombre,
+                value: item.contrata._id,
                 label: item.contrata.nombre,
                 children: [{
                   value: item._id,
@@ -170,6 +171,25 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
         console.log(error);
       })
 
+  } else if (req.headers.metodo === 'obtenerPerfil') {
+    await Empleado.findById({_id: nivelUsuario._id}).select({
+      nombre:1,
+      apellidos:1, 
+      documento_identidad:1,
+      fecha_nacimiento:1,
+      nacionalidad:1,
+      observacion: 1
+    }).then((usuario) => {
+      res.send({
+        usuario,
+        status: 'success',
+      })
+    }).catch((error) => {
+      res.send({
+        title: error.message,
+        status: 'danger'
+      })
+    })
   } else {
     return res.send('¿Estás Perdido?')
   }
@@ -233,10 +253,12 @@ export const actualizarEmpleado = async (req: Request, res: Response): Promise<R
   const tipoUser: Number|any = nivelUsuario.usuario.tipo
   if (req.headers.metodo === 'actualizarEmpleado') {
     try {
+      status = 200;
       const {
         nombre, apellidos, email, contrata_nombre, tipo_documento, numero_documento,area , carnet, nacionalidad, observacion
       } = req.body.row;
-      if (tipoUser < 5) {
+      if (Number(tipoUser) < 5) {
+        await Almacen.findOneAndUpdate({tecnico: req.body.key}, {contrata: contrata_nombre})
         await Empleado.findByIdAndUpdate({_id: req.body.key}, {
           nombre,
           apellidos,
@@ -257,16 +279,14 @@ export const actualizarEmpleado = async (req: Request, res: Response): Promise<R
             service: 'Actualizar Empleado'
           })
           respuesta = {title: 'Empleado actualizado correctamente.', status: 'success'}
-          status = 200
         }).catch((error:any) => {
           logger.error({
             message: error.message,
             service: 'Actualizar Empleado'
           });
           respuesta = {title: 'Error actualizando el empleado.', status: 'error'}
-          status = 400
         })
-      } else if(nivelUsuario.usuario.tipo === 6){
+      } else if(Number(tipoUser) === 6){
         await Empleado.findByIdAndUpdate({_id: req.body.key}, {
           nombre,
           apellidos,
@@ -297,7 +317,7 @@ export const actualizarEmpleado = async (req: Request, res: Response): Promise<R
         })
       } else {
         respuesta = {title: 'Usuario sin permisos', status: 'error'}
-        status = 404
+        status = 200
       }
     } catch (error) {
       console.log(error);
@@ -357,17 +377,18 @@ export const actualizarEmpleado = async (req: Request, res: Response): Promise<R
       status = 200
     }    
   } else if(req.headers.metodo === 'editarPerfil'){
-    const { 
-      nombre, apellidos, email, fecha_nacimiento, carnet, documento_identidad, nacionalidad, imagen_perfil
-    } = req.body;
-    await Empleado.findByIdAndUpdate({_id: nivelUsuario._id}, {
-        $set: {
-          nombre, apellidos,
-          'usuario.email': email,
-          fecha_nacimiento, carnet, documento_identidad, nacionalidad,
-          'usuario.imagen_perfil': imagen_perfil
-        }
-      }).then(() => {
+    var objForUpdate = {} as any;
+
+    if(req.body.nombre) objForUpdate.nombre = req.body.nombre;
+    if(req.body.apellidos) objForUpdate.apellidos = req.body.apellidos;
+    if(req.body.email) objForUpdate['usuario.email'] = req.body.email;
+    if(req.body.fecha_nacimiento) objForUpdate.fecha_nacimiento = req.body.fecha_nacimiento;
+    if(req.body.carnet) objForUpdate.carnet = req.body.carnet;
+    if(req.body.documento_identidad) objForUpdate.documento_identidad = req.body.documento_identidad;
+    if(req.body.nacionalidad) objForUpdate.nacionalidad = req.body.nacionalidad;
+    if(req.body.imagen_perfil) objForUpdate['usuario.imagen_perfil'] = req.body.imagen_perfil;
+
+    await Empleado.findByIdAndUpdate({_id: nivelUsuario._id}, { $set: objForUpdate}).then(() => {
         status = 201
         respuesta = {title: 'Usuario actualizado correctamente.', status: 'success'}
       }).catch((error) => {
