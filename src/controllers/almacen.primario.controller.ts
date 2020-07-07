@@ -150,49 +150,6 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
                 service: 'obtenerAlmacenes(OrganizarEquiposContrata)'
               })
             })
-            /////
-            // const materiales = [] as Array<any>;
-            // const ObtenerMateriales = equipos.map((item:any) => {
-            //   if (!materiales.some(material => material.nombre === item.material.nombre)) {
-            //     return materiales.push({_id: item.material._id ,nombre:item.material.nombre, tipo:item.material.tipo})
-            //   }
-            // });
-
-            // const CrearObjeto = materiales.map((item) => {
-            //   let objeto = {
-            //     material: {
-            //       id: item._id,
-            //       nombre: item.nombre,
-            //       tipo: item.tipo,
-            //       seriado: true,
-            //       medida: 'UNIDAD',
-            //     },      
-            //     entrada: [] as Array<string>,
-            //     contable: [] as Array<string>,
-            //     salida: [] as Array<string>,
-            //   };
-            //   const nuevoObjeto = equipos.map((itemDos:any) => {
-            //     if (objeto.material.nombre === itemDos.material.nombre) {
-            //       if (itemDos.estado === 'contable' && String(itemDos.almacen_entrada) === String(almacen._id)) {
-            //         return objeto.contable.push(itemDos._id);
-            //       } else if (itemDos.estado === 'traslado' && String(itemDos.almacen_salida) === String(almacen._id)) {
-            //         return objeto.salida.push(itemDos._id);
-            //       } else if (itemDos.estado === 'traslado' && String(itemDos.almacen_entrada) === String(almacen._id)) {
-            //         return objeto.entrada.push(itemDos._id);
-            //       }
-            //     }
-            //   });
-            //   Promise.all(nuevoObjeto).then(() => equiposAlmacen.push(objeto));
-            // });
-
-            // Promise.all([ObtenerMateriales, CrearObjeto]).then(() => {
-            //   respuesta = {
-            //     title: 'Busqueda correcta.',
-            //     status: 'success',
-            //     data: {ferreteria:almacen.ferreteria, equipos: equiposAlmacen},
-            //     dato: ''
-            //   };
-            // });
           })
         } else {
           respuesta = {
@@ -267,7 +224,6 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
                 service: 'obtenerAlmacenes(equipos.find)'
               })
             })
-            // 
           })
         ).then(() => grupoAlmacen);
       }).then(() => {

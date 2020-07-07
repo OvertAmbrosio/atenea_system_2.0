@@ -25,7 +25,7 @@ export default async function OrganizarEquiposTecnicos(equipos:IOEquipo[], almac
       //si hay resultados en la 'busqueda' hacer push y agregar los equipos, de lo contrario crearlo
       if (busqueda.length !== 0) {//si hay
         //llenar los array
-        if (equipo.almacen_entrada === null && String(equipo.almacen_salida._id) === String(almacen_tecnico._id)) {
+        if (equipo.estado === 'traslado' && String(equipo.almacen_salida._id) === String(almacen_tecnico._id)) {
           busqueda[0].salida.push(equipo);
         } else if (String(equipo.almacen_entrada._id) === String(almacen_tecnico._id)){
           if (equipo.estado === 'contable') {

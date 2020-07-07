@@ -20,7 +20,7 @@ export default async function LiquidarEquipo(data: Array<IMaterial>, almacen_tec
         return await Equipo.findOneAndUpdate({_id: item.serie}, {
           estado: 'traslado',
           almacen_salida: almacen_tecnico,
-          almacen_entrada: undefined
+          almacen_entrada: null
         }).then(() => true).catch((error) => {
           logger.error({
             message: error.message,

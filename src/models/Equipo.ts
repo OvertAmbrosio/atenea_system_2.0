@@ -26,6 +26,7 @@ const equipoSchema = new Schema({
   _id: {//serie
     type: String,
     trim: true,
+    uppercase: true,
     required: true,
   },
   material: {

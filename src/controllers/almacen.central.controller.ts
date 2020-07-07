@@ -3,12 +3,14 @@ import { Request, Response } from 'express';
 import { IEmpleado } from '../models/Empleado';
 import Albaran from '../models/Albaran';
 import Almacen from '../models/Almacen';
-import Equipo from '../models/Equipo';
+import Equipo, { IOEquipo } from '../models/Equipo';
 import EquipoBaja from '../models/EquipoBaja';
 import EntradaAlmacen from '../lib/Logistica/EntradaAlmacen';
 import SalidaAlmacen from '../lib/Logistica/SalidaAlmacen';
 import logger from '../lib/logger';
 import { Error } from 'mongoose';
+import OrganizarEquiposContrata from '../lib/OrganizarEquiposContrata';
+import OrganizarEquiposTecnicos from '../lib/OrganizarEquiposTecnicos';
 
 const nivelAdmin = [1,3,5,6];
 const nivelLogistica = [1,3,5,6,8];
@@ -16,13 +18,13 @@ const nivelLogistica = [1,3,5,6,8];
 interface IEquiposAlmacen {
   material: {
     nombre: string,
-    tipo: string,
-    medida: string,
-    seriado: boolean
+    tipo?: string,
+    medida?: string,
+    seriado?: boolean
   },
-  entrada: Array<string>,
-  contable: Array<String>,
-  salida: Array<String>
+  entrada: Array<IOEquipo>,
+  contable: Array<IOEquipo>,
+  salida: Array<IOEquipo>
 }
 
 export const listarAlmacen = async (req: Request, res: Response): Promise<Response> => {
@@ -69,51 +71,44 @@ export const listarAlmacen = async (req: Request, res: Response): Promise<Respon
     if (nivelAdmin.includes(nivelUsuario)) {
       await Almacen.findOne({tipo: 'IMC'}).populate('ferreteria.material').then(async(almacen) => {
         const equiposAlmacen = new Array;
+        status = 200;
         if (almacen) {
-          await Equipo.find({$or: [{almacen_entrada: almacen._id}, {almacen_salida: almacen._id}]}).populate('material').then(async(equipos) => {
-            const materiales = [] as Array<any>;
-            const ObtenerMateriales = equipos.map((item:any) => {
-              if (!materiales.some(material => material.nombre === item.material.nombre)) {
-                return materiales.push({_id: item.material._id ,nombre:item.material.nombre, tipo:item.material.tipo})
-              }
-            });
-
-            const CrearObjeto = materiales.map((item) => {
-              let objeto = {
-                material: {
-                  id: item._id,
-                  nombre: item.nombre,
-                  tipo: item.tipo,
-                  seriado: true,
-                  medida: 'UNIDAD',
-                },      
-                entrada: [] as Array<string>,
-                contable: [] as Array<string>,
-                salida: [] as Array<string>,
-              };
-              const nuevoObjeto = equipos.map((itemDos:any) => {
-                if (objeto.material.nombre === itemDos.material.nombre) {
-                  if (itemDos.estado === 'contable' && String(itemDos.almacen_entrada) === String(almacen._id)) {
-                    return objeto.contable.push(itemDos._id);
-                  } else if (itemDos.estado === 'traslado' && String(itemDos.almacen_salida) === String(almacen._id)) {
-                    return objeto.salida.push(itemDos._id);
-                  } else if (itemDos.estado === 'traslado' && String(itemDos.almacen_entrada) === String(almacen._id)) {
-                    return objeto.entrada.push(itemDos._id);
-                  }
-                }
-              });
-              Promise.all(nuevoObjeto).then(() => equiposAlmacen.push(objeto));
-            });
-
-            Promise.all([ObtenerMateriales, CrearObjeto]).then(() => {
-              status = 200;
-              respuesta = {
+          await Equipo.find({
+            $or: [{almacen_entrada: almacen._id}, {almacen_salida: almacen._id}]
+          }).populate('material').populate({
+            path: 'almacen_entrada',
+            select: 'tecnico contrata tipo',
+            populate: [{
+              path: 'tecnico',
+              select: 'nombre apellidos'
+            }, {
+              path: 'contrata',
+              select: 'nombre'
+            }]
+          }).populate({
+            path: 'almacen_salida',
+            select: 'tecnico contrata tipo',
+            populate: [{
+              path: 'tecnico',
+              select: 'nombre apellidos'
+            }, {
+              path: 'contrata',
+              select: 'nombre'
+            }]
+          }).then(async(equipos:any) => {
+            await OrganizarEquiposContrata(equipos, almacen).then(nuevaLista => {
+              return respuesta = {
                 title: 'Busqueda correcta.',
                 status: 'success',
-                data: {ferreteria:almacen.ferreteria, equipos: equiposAlmacen},
+                data: {ferreteria:almacen.ferreteria, equipos: nuevaLista},
                 dato: ''
               };
-            });
+            }).catch((error) => {//error de organizar equipos
+              logger.error({
+                message: error.message,
+                service: 'obtenerAlmacenes(OrganizarEquiposContrata)'
+              })
+            })
           })
         } else {
           status = 200;
@@ -152,42 +147,37 @@ export const listarAlmacen = async (req: Request, res: Response): Promise<Respon
               $or: [
                 {almacen_entrada: alm._id}, {almacen_salida: alm._id}
               ]
-            }).populate('material').then( async(listaEquipos) => {
-              //comprobar que no este vacio
-              if (listaEquipos.length !== 0) {
-                //crear objeto nuevoEquipo 
-                let nuevoEquipo: IEquiposAlmacen = {
-                  material: {
-                    nombre: '',
-                    tipo: '',
-                    medida: '',
-                    seriado: true
-                  },
-                  entrada: [] as Array<string>,
-                  contable: [] as Array<string>,
-                  salida: [] as Array<string>
-                };
-                //recorrer cada equipo para llenar el array de equipos
-                listaEquipos.forEach((item:any) => {
-                  //asignar los nombres
-                  nuevoEquipo.material.nombre = item.material.nombre;
-                  nuevoEquipo.material.tipo = item.material.tipo;
-                  nuevoEquipo.material.medida = item.material.medida;
-                  //llenar los array
-                  if (String(item.almacen_entrada) === String(alm._id)) {
-                    if (item.estado === 'contable') {
-                      return nuevoEquipo.contable.push(item._id);
-                    } else if (item.estado === 'traslado') {
-                      return nuevoEquipo.entrada.push(item._id);
-                    }
-                  } else {
-                    return nuevoEquipo.salida.push(item._id);
-                  };
-                });
-                //agregar el nuevoEquipo al nuevoAlmacen
-                return nuevoAlmacen.equipos.push(nuevoEquipo);
-              }
-            }).then(() => grupoAlmacen.almacenes.push(nuevoAlmacen)).catch((error) => {
+            }).populate('material').populate({
+              path: 'almacen_entrada',
+              select: 'tecnico contrata tipo',
+              populate: [{
+                path: 'tecnico',
+                select: 'nombre apellidos'
+              }, {
+                path: 'contrata',
+                select: 'nombre'
+              }]
+            }).populate({
+              path: 'almacen_salida',
+              select: 'tecnico contrata tipo',
+              populate: [{
+                path: 'tecnico',
+                select: 'nombre apellidos'
+              }, {
+                path: 'contrata',
+                select: 'nombre'
+              }]
+            }).then( async(listaEquipos:any) => {
+              await OrganizarEquiposTecnicos(listaEquipos, alm).then((nuevaLista) => {
+                nuevoAlmacen.equipos = nuevaLista;
+                return grupoAlmacen.almacenes.push(nuevoAlmacen)
+              }).catch((error) => {//error de organizar equipos
+                logger.error({
+                  message: error.message,
+                  service: 'obtenerAlmacenes(OrganizarEquiposTecnico)'
+                })
+              })
+            }).catch((error) => {
               logger.error({
                 message: error.message,
                 service: 'obtenerAlmacenes(equipos.find)'
@@ -214,7 +204,7 @@ export const listarAlmacen = async (req: Request, res: Response): Promise<Respon
   } else if (metodo === 'obtenerEquiposBaja') {
     if (nivelAdmin.includes(nivelUsuario)) {
       status = 200
-      await EquipoBaja.find().populate('material orden tecnico contrata usuario_entrega usuario_aprueba').sort('createdAt')
+      await EquipoBaja.find().populate('material tecnico contrata usuario_entrega usuario_aprueba').sort('createdAt')
       .then((equipos) => {
         respuesta = {
           title: 'Busqueda correcta.',

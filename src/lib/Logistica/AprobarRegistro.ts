@@ -9,7 +9,7 @@ import logger from '../logger';
  */
 export default async function AprobarRegistro(lote: Array<ILote>, almacenEntrada: string, almacenSalida: string, tecnico?:boolean): Promise<boolean> {
   let updateObject:any = {'estado': 'contable'};
-  if(tecnico) {
+  if(tecnico) {//true si es el tecnico quien acepta el registro
     updateObject.fecha_asignado = new Date();
   } else {
     updateObject.fecha_recibido = new Date();

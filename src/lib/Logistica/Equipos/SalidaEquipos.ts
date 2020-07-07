@@ -11,7 +11,7 @@ interface IMaterialData {
 //Al ser salidas todas las series ya deben existir
 export default async function SalidaEquipos(entrada:IMaterialData, almacen_salida: string, almacen_entrada: string): Promise<boolean> {
   return new Promise(async(resolve, reject) => {
-    await Equipo.updateMany({_id: { $in: entrada.series}}, {
+    return await Equipo.updateMany({_id: { $in: entrada.series}}, {
       estado: 'traslado',
       almacen_salida: almacen_salida,
       almacen_entrada: almacen_entrada

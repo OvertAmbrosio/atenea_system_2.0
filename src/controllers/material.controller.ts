@@ -8,6 +8,8 @@ import Equipo from '../models/Equipo';
 import EquipoBaja from '../models/EquipoBaja';
 
 const nivelAdmin = [1,3];
+const nivelCentral = [1,3,5];
+const nivelPrimario = [1,3,5,6,8];
 
 export const listarMateriales = async (req: Request, res: Response): Promise<Response> => {
 
@@ -44,7 +46,7 @@ export const listarMateriales = async (req: Request, res: Response): Promise<Res
   } else if (metodo === 'buscarEquipoBaja') {
     try {
       const serie = String(req.headers.serie);
-      await EquipoBaja.findOne({serie: serie}).populate('material orden tecnico contrata usuario_entrega usuario_aprueba')
+      await EquipoBaja.findOne({serie: serie}).populate('material tecnico contrata usuario_entrega usuario_aprueba')
         .then((elements) => {
           respuesta = {
             title: 'Busqueda correcta',
@@ -65,16 +67,67 @@ export const listarMateriales = async (req: Request, res: Response): Promise<Res
       });
       respuesta.title = 'Error obteniendo datos del cliente.'
     }
-  } else if (nivelAdmin.includes(nivelUsuario)) {
-    await Material.find().sort({seriado:1, tipo: 1}).then((data) => {
-      respuesta = {title: 'Busqueda Correcta.', status: 'success', data}
-    }).catch((error:Error) => {
-      logger.error({
-        message: error.message,
-        service: 'Error buscando materiales'
+  } else if (metodo === '') {
+    if (nivelAdmin.includes(nivelUsuario)) {
+      await Material.find().sort({seriado:1, tipo: 1}).then((data) => {
+        respuesta = {title: 'Busqueda Correcta.', status: 'success', data}
+      }).catch((error:Error) => {
+        logger.error({
+          message: error.message,
+          service: 'Error buscando materiales'
+        });
+        respuesta = {title: 'Error buscando materiales.', status: 'error', data: []}
       });
-      respuesta = {title: 'Error buscando materiales.', status: 'error', data: []}
-    });
+    }
+  } else if (metodo === 'listarEquiposCentral') {
+    try {
+      if (nivelCentral.includes(nivelUsuario)) {
+        await Equipo.find({estado: {$ne: 'liquidado'}}).populate({
+          path: 'material',
+          select: 'nombre tipo'
+        }).populate({
+          path: 'almacen_entrada',
+          select: 'contrata tecnico tipo',
+          populate: [{
+            path: 'contrata',
+            select: 'nombre'
+          },{
+            path: 'tecnico',
+            select: 'nombre apellidos carnet'
+          }],
+        }).populate({
+          path: 'almacen_salida',
+          select: 'contrata tecnico tipo',
+          populate: [{
+            path: 'contrata',
+            select: 'nombre'
+          },{
+            path: 'tecnico',
+            select: 'nombre apellidos carnet'
+          }],
+        }).sort({
+          createdAt: 1
+        }).then((listaEquipos) => {
+          respuesta = {
+            title: 'Busqueda correcta.',
+            status: 'success',
+            data: listaEquipos
+          };
+        }).catch((error) => {
+          logger.error({
+            message:error.message,
+            service: 'listarEquiposCentral (find)'
+          });
+          respuesta.title = 'Error en la busqueda de equipos.'
+        })
+      }
+    } catch (error) {
+      logger.error({
+        message:error.message,
+        service: 'listarEquiposCentral (try/catch)'
+      });
+      respuesta.title = 'Error en el cliente.'
+    }
   }
 
   return res.send(respuesta);

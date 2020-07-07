@@ -10,7 +10,7 @@ const logger = createLogger({
     format.splat(),
     format.colorize(),
     format.json(),
-    format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`)
+    format.printf((info) => `${info.timestamp} ${info.level}: ${info.message} - ${info.service}`)
   ),
   transports: [
     //
