@@ -17,7 +17,10 @@ export const acceder = async (req: Request, res: Response): Promise<Response> =>
   if (usuarioObjeto) {
     const {estado, id} = await ValidarSession(req.body.email);
     if (estado) {
-      logger.error(usuarioObjeto.usuario.email + ' - Inicio de sesión fallido.');
+      logger.error({
+        message: usuarioObjeto.usuario.email + ' - Inicio de sesión fallido.',
+        service: 'Login Web.'
+      });
       return res.status(400).json({ title: 'Ya hay una sesión activa.', status: 'warning' });
     } else {
       const idSesion: string = id;
@@ -174,7 +177,10 @@ export const accederTecnico = async (req: Request, res: Response): Promise<Respo
   if (usuarioObjeto) {
     const {estado, id} = await ValidarSession(usuarioObjeto.usuario.email);
     if (estado) {
-      logger.error(usuarioObjeto.carnet + ' - Inicio de sesión fallido.');
+      logger.error({
+        message: usuarioObjeto.carnet + ' - Inicio de sesión fallido.',
+        service: 'Login Tecnico'
+      });
       return res.json({ error: 'Ya hay una sesión activa.', status: 'warning' });
     } else {
       const idSesion: string = id;
