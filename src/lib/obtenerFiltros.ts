@@ -3,7 +3,7 @@ import { IOrden } from '../models/Orden';
 export default async function obtenerFiltros (tipo:string|any, data:Array<IOrden>) {
   switch (tipo) {
     case 'averiashfc':
-      return new Promise(async(resolve, reject) => {
+      return new Promise((resolve, reject) => {
         let tecnicos:Array<string>|any = [];
         let contratas:Array<string>|any = [];
         let estados:Array<string>|any = [];
@@ -20,7 +20,7 @@ export default async function obtenerFiltros (tipo:string|any, data:Array<IOrden
         let filtroZonal:Array<Object> = [];
         let filtroNodo:Array<Object> = [];
   
-        await data.map((d) => {
+        data.map((d) => {
           if(d.contrata_asignada?.tecnico_asignado?.nombre_tecnico !== undefined && !tecnicos.includes(d.contrata_asignada.tecnico_asignado.nombre_tecnico)) {
             tecnicos.push(d.contrata_asignada?.tecnico_asignado?.nombre_tecnico);
             filtroTecnico.push({text: d.contrata_asignada?.tecnico_asignado?.nombre_tecnico, value: d.contrata_asignada?.tecnico_asignado?.nombre_tecnico});
@@ -53,7 +53,7 @@ export default async function obtenerFiltros (tipo:string|any, data:Array<IOrden
         resolve({filtroTecnico, filtroContrata, filtroEstado, filtroSegmento, filtroDistrito, filtroZonal, filtroNodo})
       });
     case 'altashfc':
-      return new Promise(async(resolve, reject) => {
+      return new Promise((resolve, reject) => {
         let tecnicos:Array<string>|any = [];
         let contratas:Array<string>|any = [];
         let estados:Array<string>|any = [];
@@ -68,7 +68,7 @@ export default async function obtenerFiltros (tipo:string|any, data:Array<IOrden
         let filtroDistrito:Array<Object> = [];
         let filtroNodo:Array<Object> = [];
   
-        await data.map((d) => {
+        data.map((d) => {
           if(d.contrata_asignada?.tecnico_asignado?.nombre_tecnico !== undefined && !tecnicos.includes(d.contrata_asignada.tecnico_asignado.nombre_tecnico)) {
             tecnicos.push(d.contrata_asignada?.tecnico_asignado?.nombre_tecnico);
             filtroTecnico.push({text: d.contrata_asignada?.tecnico_asignado?.nombre_tecnico, value: d.contrata_asignada?.tecnico_asignado?.nombre_tecnico});
@@ -97,7 +97,7 @@ export default async function obtenerFiltros (tipo:string|any, data:Array<IOrden
         resolve({filtroTecnico , filtroContrata, filtroEstado, filtroSegmento, filtroDistrito, filtroNodo})
       });
     case 'basicas':
-      return new Promise(async(resolve, reject) => {
+      return new Promise((resolve, reject) => {
         let tecnicos:Array<string>|any = [];
         let contratas:Array<string>|any = [];
         let estados:Array<string>|any = [];
@@ -114,7 +114,7 @@ export default async function obtenerFiltros (tipo:string|any, data:Array<IOrden
         let filtroMdf:Array<Object> = [];
         let filtroArmario:Array<Object> = [];
   
-        await data.map((d) => {
+        data.map((d) => {
           if(d.contrata_asignada?.tecnico_asignado?.nombre_tecnico !== undefined && !tecnicos.includes(d.contrata_asignada.tecnico_asignado.nombre_tecnico)) {
             tecnicos.push(d.contrata_asignada?.tecnico_asignado?.nombre_tecnico);
             filtroTecnico.push({text: d.contrata_asignada?.tecnico_asignado?.nombre_tecnico, value: d.contrata_asignada?.tecnico_asignado?.nombre_tecnico});
@@ -147,7 +147,7 @@ export default async function obtenerFiltros (tipo:string|any, data:Array<IOrden
         resolve({filtroTecnico, filtroContrata, filtroEstado, filtroSegmento, filtroDistrito, filtroArmario, filtroMdf})
       });
     case 'speedy':
-      return new Promise(async(resolve, reject) => {
+      return new Promise((resolve, reject) => {
         let tecnicos:Array<string>|any = [];
         let contratas:Array<string>|any = [];
         let estados:Array<string>|any = [];
@@ -164,7 +164,7 @@ export default async function obtenerFiltros (tipo:string|any, data:Array<IOrden
         let filtroArmario:Array<Object> = [];
         let filtroDslam:Array<Object> = [];
   
-        await data.map((d) => {
+        data.map((d) => {
           if(d.contrata_asignada?.tecnico_asignado?.nombre_tecnico !== undefined && !tecnicos.includes(d.contrata_asignada.tecnico_asignado.nombre_tecnico)) {
             tecnicos.push(d.contrata_asignada?.tecnico_asignado?.nombre_tecnico);
             filtroTecnico.push({text: d.contrata_asignada?.tecnico_asignado?.nombre_tecnico, value: d.contrata_asignada?.tecnico_asignado?.nombre_tecnico});

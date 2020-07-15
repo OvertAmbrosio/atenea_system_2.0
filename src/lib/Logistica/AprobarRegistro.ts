@@ -2,6 +2,7 @@ import Equipo from '../../models/Equipo';
 import Almacen from '../../models/Almacen';
 import { ILote } from '../../models/Albaran';
 import logger from '../logger';
+import GuardarMovimiento from './GuardarMovimiento';
 /**
  * @param {Array} lote - Lote de materiales
  * @param {string} almacenEntrada - Almacen a donde se dirigía el lote
@@ -37,6 +38,8 @@ export default async function AprobarRegistro(lote: Array<ILote>, almacenEntrada
         'ferreteria.$.entrada': -cantidad,
         'ferreteria.$.contable': cantidad
       }
+    }).then(async() => {
+      return await GuardarMovimiento('entrada', almacenEntrada, material, cantidad);
     }).then(() => true).catch((error) => {
       logger.error({
         message: error.message,
@@ -52,6 +55,8 @@ export default async function AprobarRegistro(lote: Array<ILote>, almacenEntrada
       $inc: { 
         'ferreteria.$.salida': -cantidad 
       } 
+    }).then(async() => {
+      return await GuardarMovimiento('salida', almacenSalida, material, cantidad);
     }).then(() => true).catch((error) => {
       logger.error({
         message: error.message,

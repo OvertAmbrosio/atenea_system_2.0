@@ -38,11 +38,12 @@ export interface IOrden extends Document {
       nombre_tecnico?: string,
       estado_orden?: number,
       observacion?: string,
-      imagenes?: {
+      imagenes?: [{
         titulo?: string,
         url?: string,
         public_id?: string
-      },
+      }],
+      fecha_enviado?: Date,
       fecha_finalizado?: Date,
       material_usado?: {
         almacen_actual?: string,
@@ -202,6 +203,10 @@ const ordenSchema = new Schema({
         url: String,
         public_id: String
       }],
+      fecha_enviado: {
+        type: Date,
+        default: null
+      },
       fecha_finalizado: {
         type: Date,
         default: null

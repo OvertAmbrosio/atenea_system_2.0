@@ -1,5 +1,6 @@
 import Almacen from '../../../models/Almacen';
 import logger from '../../logger';
+import GuardarMovimiento from '../GuardarMovimiento';
 
 interface IMaterial {
   material: string,
@@ -52,6 +53,8 @@ export default async function LiquidarFerreteria(data: Array<IMaterial>, almacen
           $inc: { 
             'ferreteria.$.salida': -Number(item.cantidad) 
           } 
+        }).then(async() => {
+          return await GuardarMovimiento('liquidacion', almacen, item.material, item.cantidad);
         }).then(() => true).catch((error) => {
           logger.error({
             message: error.message,

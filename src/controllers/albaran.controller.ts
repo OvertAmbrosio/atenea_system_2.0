@@ -537,7 +537,7 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
     }
   } else if (metodo === 'buscarEquipo') {
     try {
-      const almacen = String(req.headers.almacen);//serie del equipo
+      const almacen = String(req.headers.almacen).toUpperCase();//serie del equipo
       await Albaran.find({'lote.series': {$in: [almacen]}, tipo: {$ne: 'entrada'}
       }).select('tipo almacen_entrada almacen_salida estado_registro createdAt').populate({
         path: 'almacen_entrada',

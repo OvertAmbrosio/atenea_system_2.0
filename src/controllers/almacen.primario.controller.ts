@@ -77,6 +77,8 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
           service: 'Buscar almacen (try/catch).'
         });
       }
+    } else {
+      return res.send(respuesta);
     }
   } else if (metodo === 'obtenerIdAlmacen') {
     if (nivelLogistica.includes(nivelUsuario)) {
@@ -105,6 +107,8 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
           service: 'obtenerIdAlmacen'
         })
       })
+    } else {
+      return res.send(respuesta);
     }
   } else if (metodo === 'obtenerAlmacen') {
     if (nivelLogistica.includes(nivelUsuario)) {
@@ -166,6 +170,8 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
           service: 'obtenerInventario(findOne)'
         })
       });
+    } else {
+      return res.send(respuesta);
     }
   } else if (metodo === 'obtenerAlmacenes') {
     if (nivelLogistica.includes(nivelUsuario)) {
@@ -240,7 +246,77 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
           service: 'obtenerAlmacenes(almacen.find)'
         })
       });
-    };
+    } else {
+      return res.send(respuesta);
+    }
+  } else if (metodo === 'obtenerIdsAlmacenes') {
+    if (nivelLogistica.includes(nivelUsuario)) {
+      await Almacen.find({tipo: 'IMP'}).populate('contrata').then(async(almacenes) => {
+        if (almacenes.length > 0) {
+          const listaAlamaces = almacenes.map((e:any) => {
+            return {
+              _id: e._id,
+              nombre: e.contrata.nombre
+            }
+          });
+          respuesta = {
+            title: 'Busqueda correcta.',
+            status: 'success',
+            data: listaAlamaces,
+            dato: ''
+          }
+        } else {
+          respuesta.title = 'Busqueda correcta(vacio).',
+          respuesta.status = 'success'
+        }
+      }).catch((error) => {
+        respuesta.title = 'Error en la busqueda.';
+        logger.error({
+          message: error.message,
+          service: 'obtenerIdsAlmacenes(almacen.find)'
+        })
+      });
+    } else {
+      return res.send(respuesta);
+    }
+  } else if (metodo === 'obtenerIdsTodo') {
+    if (nivelLogistica.includes(nivelUsuario)) {
+      await Almacen.find({tipo: {$ne: 'IMC'}}).populate('tecnico').populate('contrata').then(async(almacenes) => {
+        let listaCascada = almacenes.map((item:any) => {
+          if (item.tipo === 'IMP') {
+            return {
+              value: item.contrata._id,
+              label: item.contrata.nombre,
+              children: (almacenes.filter(e => e.tipo === 'IMS' && e.contrata === item.contrata)).map((e:any) => {
+                return {
+                  value: e._id,
+                  label: e.tecnico.nombre + ' ' + e.tecnico.apellidos
+                }
+              })
+            };
+          } else {
+            return;
+          };
+        });
+        respuesta = {
+          title: 'Busqueda correcta.',
+          status: 'success',
+          data: listaCascada.filter(e => e !== undefined),
+          dato: ''
+        }
+      }).catch((error) => {
+        respuesta.title = 'Error en la busqueda.';
+        logger.error({
+          message: error.message,
+          service: 'obtenerAlmacenes(almacen.find)'
+        })
+      });
+    } else {
+      return res.send(respuesta);
+    }
+  } else {
+    respuesta.title = 'Metodo incorrecto.'
+    return res.send(respuesta);
   }
 
   return res.send(respuesta);

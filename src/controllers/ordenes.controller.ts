@@ -17,7 +17,7 @@ import ValidarOrden from '../validations/ValidarOrden';
 
 const nivelAdmin = [1,2,4];
 const nivelOperativo = [1,2,4,6,7];
-const tecAsignado = ['pendiente','agendada','iniciada'];
+const tecAsignado = ['pendiente','agendada','iniciada','asignada'];
 //nivel 1 es administrador -> todo
 //nivel 2 es Jefe de Operaciones -> Todo Operaciones / usuario
 //nivel 4 es Lider de Gestión -> Todo Operaciones / parte de usuario
@@ -46,9 +46,12 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
             path: 'contrata_asignada.tecnico_asignado.material_usado.material_seriado.material',
           }).populate({
             path: 'contrata_asignada.tecnico_asignado.material_usado.material_baja.material',
-          }).populate('contrata_asignada.contrata').then(async(data: any) => {
+          }).populate({
+            path: 'contrata_asignada.tecnico_asignado.id',
+            select: 'nombre apellidos'
+          }).populate('contrata_asignada.contrata').sort({updatedAt: -1}).then(async(data: any) => {
             await obtenerFiltros(tipo, data)
-              .then((filtros: Object|any) => {
+              .then((filtros: any) => {
                 status = 200;
                 respuesta = {
                   title: "Busqueda Correcta.",
@@ -267,6 +270,55 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
         filtros: []
       }
     })
+  } else if (req.headers.metodo === 'ordenesPorAprobar') {
+    if (nivelAdmin.includes(nivelUsuario.usuario.tipo)) {
+      try {
+        status = 200;
+        const tipo: string|any = req.headers.tipo;      
+        await Orden.find({
+            tipo: tipo,
+            'contrata_asignada.tecnico_asignado.estado_orden': 2
+          }).populate({
+            path: 'contrata_asignada.tecnico_asignado.material_usado.material_no_seriado.material',
+            select: 'nombre'
+          }).populate({
+            path: 'contrata_asignada.tecnico_asignado.material_usado.material_seriado.material',
+            select: 'nombre'
+          }).populate({
+            path: 'contrata_asignada.tecnico_asignado.material_usado.material_baja.material',
+            select: 'nombre'
+          }).populate({
+            path: 'contrata_asignada.tecnico_asignado.id',
+            select: 'nombre apellidos'
+          }).populate({
+            path: 'contrata_asignada.contrata',
+            select: 'nombre'
+          }).select({
+            hfc_detalle: 0, cobre_detalle: 0, detalle_registro: 0, estado_sistema: 0, imagen_referencia: 0
+          }).sort({updatedAt: -1}).then(async(data: any) => {
+            respuesta = {
+              title: "Busqueda Correcta.",
+              status: 'success',
+              ordenes: data, 
+              filtros: []
+            }
+          }).catch((error:Error) => {
+            logger.error({
+              message: error.message,
+              service: 'Listar Ordenes'
+            })
+          })
+      } catch (error) {
+        respuesta.title = 'Error obteniendo valores.';
+        status = 400;
+        logger.error({
+          message: error.message,
+          service: 'Listar Ordenes (try/catch)'
+        })
+      }
+    } else {
+      respuesta.title = 'No tienes permisos suficientes.';
+    }
   } else {
     respuesta.title = 'Metodo incorrecto.';
   }
@@ -316,8 +368,9 @@ export const guardarOrden = async (req: Request, res: Response): Promise<Respons
           return orden;
         });
         await Orden.insertMany(nuevasOrdenes, {ordered:false})
-          .then((resp:Array<any>|any) => {
-            respuesta = {title: `${resp.length} Ordenes guardadas correctamente.`, status: 'success'};
+          .then((resp) => {
+            console.log(resp);
+            respuesta = {title: `Ordenes guardadas correctamente.`, status: 'success'};
             status = 200;
         }).catch((error) => {
             if (error.result.nInserted > 0) {
@@ -512,11 +565,20 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
         //convertir el formdata(text) en array
         let arrayOrden = ordenes.split(",").map(String);
         const files: any = req.files;
-        let estado_tecnico = 1;
+        let objectUpdate = {} as any;
         if (tecAsignado.includes(String(estado).toLowerCase())) {
-          estado_tecnico = 1;
+          objectUpdate = {
+            'contrata_asignada.estado' : estado, 
+            'contrata_asignada.observacion' :  observacion,
+            'contrata_asignada.tecnico_asignado.estado_orden': 1
+          }
         } else {
-          estado_tecnico = 3;
+          objectUpdate = {
+            'contrata_asignada.estado' : estado, 
+            'contrata_asignada.observacion' :  observacion,
+            'contrata_asignada.tecnico_asignado.estado_orden': 3,
+            'contrata_asignada.tecnico_asignado.fecha_finalizado': Date.now()
+          }
         }
         //funcion para subir imagenes a cloudinary, si no hay imagenes devolverá vacio
         await ValidarOrden(arrayOrden).then(async(validado) => {
@@ -535,11 +597,7 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
                 await Orden.updateMany({
                   _id: { $in: arrayOrden}
                 }, {
-                  $set: {  
-                    'contrata_asignada.estado' : estado, 
-                    'contrata_asignada.observacion' :  observacion,
-                    'contrata_asignada.tecnico_asignado.estado_orden': estado_tecnico
-                  },
+                  $set: objectUpdate,
                   $push: { detalle_registro },
                 }).then(() => {
                   if (ordenes.length > 1) {
@@ -683,7 +741,11 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
             tecnico: contrata_asignada.tecnico_asignado.id,
             contrata: nivelUsuario.contrata._id,
             gestor: nivelUsuario._id,
-            material_usado: contrata_asignada.tecnico_asignado.material_usado
+            material_usado: contrata_asignada.tecnico_asignado.material_usado,
+            imagenes: contrata_asignada.tecnico_asignado.imagenes !== undefined || 
+                      (contrata_asignada.tecnico_asignado.imagenes).length > 0 ? contrata_asignada.tecnico_asignado.imagenes
+                      : [],
+            observacion: contrata_asignada.tecnico_asignado.observacion
           });
           let detalle_registro = {
             estado: 'Liquidada',         
@@ -715,7 +777,8 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
               });
               return await nuevoEquipoBaja.save().then(() => {
                 logger.info({
-                  message: `Nuevo equipo de baja - ${item.serie}`
+                  message: `Nuevo equipo de baja - ${item.serie}`,
+                  service: 'nuevoEquipoBaja(promise.all)'
                 })
               }).catch((error:Error) => {
                 logger.error({
@@ -729,7 +792,7 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
             $set: {  
               'contrata_asignada.estado': 'Liquidada',
               'contrata_asignada.tecnico_asignado.estado_orden': 3,
-              'contrata_asignada.tecnico_asignado.fecha_finalizado': new Date(),
+              'contrata_asignada.tecnico_asignado.fecha_finalizado': Date.now(),
               'contrata_asignada.observacion': `${contrata_asignada.observacion} (Técnico)`
               },
             $push: { detalle_registro} 
@@ -820,14 +883,15 @@ export const editarOrden = async (req: Request, res: Response): Promise<Response
   const metodo = req.headers.metodo;
   let respuesta = {title: 'Error en el servidor', status: 'error'};
 
-  if (metodo === 'liquidarOrdenTecnico') {
+  if (metodo === 'liquidarOrdenTecnico') {//metodo que envia la orden para liquidar desde la app
     try {
       const { almacen_actual, codigo_requerimiento, observacion } = req.body;
       const material_usado = JSON.parse(req.body.material_usado);
       if(material_usado.almacen_actual === null && almacen_actual !== null) material_usado.almacen_actual = almacen_actual;
       const files: any = req.files;
 
-      var objForUpdate:{[key: string]: any} = {
+      let objForUpdate:{[key: string]: any} = {
+        'contrata_asignada.tecnico_asignado.fecha_enviado': Date.now(),
         'contrata_asignada.tecnico_asignado.estado_orden': 2,
         'contrata_asignada.tecnico_asignado.observacion': observacion,
         'contrata_asignada.tecnico_asignado.material_usado': material_usado,

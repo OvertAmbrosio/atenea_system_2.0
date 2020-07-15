@@ -19,7 +19,13 @@ export interface IRegistro extends Document {
       material: string,
       serie: string
     }
-  }
+  },
+  imagenes?: [{
+    titulo?: string,
+    url?: string,
+    public_id?: string
+  }],
+  observacion?: string
 }
 
 const registroSchema = new Schema({
@@ -78,6 +84,15 @@ const registroSchema = new Schema({
       },
       serie: String,
     }],
+  },
+  imagenes: [{
+    titulo: String,
+    url: String,
+    public_id: String
+  }],
+  observacion: {
+    type: String,
+    default: '-'
   },
 },
 {

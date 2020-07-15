@@ -9,7 +9,6 @@ import EquipoBaja from '../models/EquipoBaja';
 
 const nivelAdmin = [1,3];
 const nivelCentral = [1,3,5];
-const nivelPrimario = [1,3,5,6,8];
 
 export const listarMateriales = async (req: Request, res: Response): Promise<Response> => {
 
@@ -21,7 +20,7 @@ export const listarMateriales = async (req: Request, res: Response): Promise<Res
 
   if (metodo === 'buscarEquipo') {
     try {
-      const serie = String(req.headers.serie);
+      const serie = String(req.headers.serie).toUpperCase();
       await Equipo.findOne({_id: serie}).populate({path: 'almacen_entrada', populate: 'contrata tecnico'
         }).populate({path: 'almacen_salida', populate: 'contrata tecnico'}).populate('material').then((element) => {
           respuesta = {
@@ -128,6 +127,20 @@ export const listarMateriales = async (req: Request, res: Response): Promise<Res
       });
       respuesta.title = 'Error en el cliente.'
     }
+  } else if (metodo === 'listarFerreteria') {
+    await Material.find({seriado: false}).select('nombre').then((materiales) => {
+      respuesta = {
+        title: 'Busqueda correcta.',
+        status: 'success',
+        data: materiales
+      }
+    }).catch((error) => {
+      respuesta.title = error.message;
+      logger.error({
+        message: error.message,
+        service: 'listarFerreteria'
+      })
+    })
   }
 
   return res.send(respuesta);

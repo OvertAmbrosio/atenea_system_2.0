@@ -371,6 +371,26 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
       }); 
       respuesta.title = 'Error buscando la contrata.'
     })
+  } else if (metodo === 'obtenerIdsAlmacenes') {
+    await Almacen.find({tipo: 'IMS', contrata: Empleado.contrata._id}).populate('tecnico').then((almacenes) => {
+      respuesta = {
+        title: 'Busqueda correcta.',
+        status: 'success',
+        dato: '',
+        data: almacenes.length > 0 ? almacenes.map((e:any) => {
+          return {
+            _id: e._id,
+            nombre: e.tecnico.nombre + ' ' + e.tecnico.apellidos
+          }
+        }):[]
+      }
+    }).catch((error) => {
+      respuesta.title = error.message;
+      logger.error({
+        message: error.message,
+        service: 'obtenerIdsAlmacenes'
+      })
+    })
   }
 
   return res.send(respuesta);

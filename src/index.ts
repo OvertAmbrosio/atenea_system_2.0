@@ -1,5 +1,5 @@
-import schedule from 'node-schedule';
 import 'newrelic';
+import schedule from 'node-schedule';
 import app from './app';
 import './database'
 import logger from './lib/logger';

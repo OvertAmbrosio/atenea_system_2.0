@@ -9,6 +9,7 @@ import multer from 'multer';
 import path from 'path'
 import passport from 'passport';
 import passportMiddleware from './middlewares/passport';
+// import memjs from 'memjs';
 //importar rutas
 //<----------------USUARIOS--------------------->
 import authRoutes from './routes/auth.routes';
@@ -18,6 +19,7 @@ import contratasRoutes from './routes/contratas.routes';
 import ordenesRoutes from './routes/ordenes.routes';
 //<----------------LOGISTICA---------------------->
 import materialesRoutes from './routes/materiales.routes';
+import movimientosRoutes from './routes/movimientos.routes'
 import albaranRoutes from './routes/albaran.routes';
 import almacenCentralRoutes from './routes/almacen.central.routes';
 import almacenPrimarioRoutes from './routes/almacen.primario.routes';
@@ -70,6 +72,7 @@ app.use('/api/empleados', passport.authenticate('jwt', { session: false }), empl
 app.use('/api/contratas', passport.authenticate('jwt', { session: false }), contratasRoutes);
 app.use('/api/ordenes', passport.authenticate('jwt', { session: false }), ordenesRoutes);
 app.use('/api/materiales', passport.authenticate('jwt', { session: false }), materialesRoutes);
+app.use('/api/movimientos', passport.authenticate('jwt', { session: false }), movimientosRoutes);
 app.use('/api/inventario', passport.authenticate('jwt', { session: false }), albaranRoutes);
 app.use('/api/inventario', passport.authenticate('jwt', { session: false }), almacenCentralRoutes);
 app.use('/api/inventario', passport.authenticate('jwt', { session: false }), almacenPrimarioRoutes);
