@@ -8,12 +8,15 @@ import GuardarMovimiento from './GuardarMovimiento';
  * @param {string} almacenEntrada - Almacen a donde se dirigía el lote
  * @param {string} almacenSalida - Almacen de donde salía el lote
  */
-export default async function AprobarRegistro(lote: Array<ILote>, almacenEntrada: string, almacenSalida: string, tecnico?:boolean): Promise<boolean> {
+export default async function AprobarRegistro(lote: Array<ILote>, almacenEntrada: string, almacenSalida: string, tecnico?:boolean, contrata?:boolean): Promise<boolean> {
   let updateObject:any = {'estado': 'contable'};
   if(tecnico) {//true si es el tecnico quien acepta el registro
     updateObject.fecha_asignado = new Date();
   } else {
     updateObject.fecha_recibido = new Date();
+  }
+  if (contrata) {
+    updateObject.fecha_contrata = new Date();
   }
   //funcion que actualiza el equipo en contable
   const EquiposAprobar = async (material:string, series:Array<string>):Promise<boolean> => {

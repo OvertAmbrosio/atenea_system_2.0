@@ -254,7 +254,7 @@ const ordenSchema = new Schema({
   detalle_registro: [{
     fecha_actualizado: {
       type: Date,
-      default: new Date()
+      default: Date.now()
     },
     estado: {
       type: String,

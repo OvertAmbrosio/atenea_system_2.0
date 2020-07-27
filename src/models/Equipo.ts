@@ -6,6 +6,7 @@ export interface IOEquipo {
   _id: string,
   material: IMaterial,
   fecha_asignado?: Date,
+  fecha_contrata?: Date,
   fecha_recibido?: Date,
   estado?: string,
   almacen_salida: IAlmacen,
@@ -16,6 +17,7 @@ export interface IEquipo extends Document {
   _id: string,
   material: string,
   fecha_asignado?: Date,
+  fecha_contrata?: Date,
   fecha_recibido?: Date,
   estado?: string,
   almacen_salida?: string|any,
@@ -34,6 +36,10 @@ const equipoSchema = new Schema({
     ref: 'Materiale'
   },
   fecha_asignado: {//fecha de asignacion del equipo al tecnico
+    type: Date,
+    default: null
+  },
+  fecha_contrata: {//fecha en contrata
     type: Date,
     default: null
   },

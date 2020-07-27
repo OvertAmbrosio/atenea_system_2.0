@@ -99,4 +99,16 @@ const registroSchema = new Schema({
   timestamps: true
 });
 
+registroSchema.virtual('orden', {
+  ref: 'Ordene', // The model to use
+  localField: 'codigo_requerimiento', // Find people where `localField`
+  foreignField: 'codigo_requerimiento', // is equal to `foreignField`
+  // If `justOne` is true, 'members' will be a single doc as opposed to
+  // an array. `justOne` is false by default.
+  justOne: true,
+});
+
+registroSchema.set('toObject', { virtuals: true });
+registroSchema.set('toJSON', { virtuals: true });
+
 export default model<IRegistro>('Registro', registroSchema);

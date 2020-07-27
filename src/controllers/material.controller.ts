@@ -81,7 +81,9 @@ export const listarMateriales = async (req: Request, res: Response): Promise<Res
   } else if (metodo === 'listarEquiposCentral') {
     try {
       if (nivelCentral.includes(nivelUsuario)) {
-        await Equipo.find({estado: {$ne: 'liquidado'}}).populate({
+        await Equipo.find({$or: [
+          {estado: 'contable'}, {estado: 'traslado'}
+        ]}).populate({
           path: 'material',
           select: 'nombre tipo'
         }).populate({

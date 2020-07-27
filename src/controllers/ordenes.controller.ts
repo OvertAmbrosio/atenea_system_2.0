@@ -41,12 +41,6 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
               {'estado_sistema.fecha_liquidada': null }
             ]
           }).populate({
-            path: 'contrata_asignada.tecnico_asignado.material_usado.material_no_seriado.material',
-          }).populate({
-            path: 'contrata_asignada.tecnico_asignado.material_usado.material_seriado.material',
-          }).populate({
-            path: 'contrata_asignada.tecnico_asignado.material_usado.material_baja.material',
-          }).populate({
             path: 'contrata_asignada.tecnico_asignado.id',
             select: 'nombre apellidos'
           }).populate('contrata_asignada.contrata').sort({updatedAt: -1}).then(async(data: any) => {
@@ -182,7 +176,7 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
             {codigo_requerimiento: codigo },
             {telefono: codigo }
           ]
-        }).populate('contrata_asignada.contrata').then((data: any) => {
+        }).populate('contrata_asignada.contrata').populate('detalle_registro.contrata').then((data: any) => {
             status = 200;
             respuesta = {
               title: `Se encontraron ${data.length} orden/es.`,
@@ -289,7 +283,7 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
             select: 'nombre'
           }).populate({
             path: 'contrata_asignada.tecnico_asignado.id',
-            select: 'nombre apellidos'
+            select: 'nombre apellidos documento_identidad'
           }).populate({
             path: 'contrata_asignada.contrata',
             select: 'nombre'
@@ -739,7 +733,7 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
             estado: 'aprobado',
             codigo_requerimiento,
             tecnico: contrata_asignada.tecnico_asignado.id,
-            contrata: nivelUsuario.contrata._id,
+            contrata: contrata_asignada.contrata._id !== undefined ? contrata_asignada.contrata._id : contrata_asignada.contrata,
             gestor: nivelUsuario._id,
             material_usado: contrata_asignada.tecnico_asignado.material_usado,
             imagenes: contrata_asignada.tecnico_asignado.imagenes !== undefined || 

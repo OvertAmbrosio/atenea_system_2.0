@@ -17,6 +17,7 @@ import empleadosRoutes from './routes/empleados.routes';
 import contratasRoutes from './routes/contratas.routes';
 //<----------------OPERATIVA--------------------->
 import ordenesRoutes from './routes/ordenes.routes';
+import registroRoutes from './routes/registro.routes';
 //<----------------LOGISTICA---------------------->
 import materialesRoutes from './routes/materiales.routes';
 import movimientosRoutes from './routes/movimientos.routes'
@@ -71,6 +72,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/empleados', passport.authenticate('jwt', { session: false }), empleadosRoutes);
 app.use('/api/contratas', passport.authenticate('jwt', { session: false }), contratasRoutes);
 app.use('/api/ordenes', passport.authenticate('jwt', { session: false }), ordenesRoutes);
+app.use('/api/registro', passport.authenticate('jwt', { session: false }), registroRoutes);
 app.use('/api/materiales', passport.authenticate('jwt', { session: false }), materialesRoutes);
 app.use('/api/movimientos', passport.authenticate('jwt', { session: false }), movimientosRoutes);
 app.use('/api/inventario', passport.authenticate('jwt', { session: false }), albaranRoutes);

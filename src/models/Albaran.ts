@@ -13,7 +13,7 @@ export interface IAlbaran extends Document {
   codigo: string,
   lote: ILote[],
   almacen_entrada: string,
-  almacen_salida?: string,
+  almacen_salida?: string | any,
   usuario_entrega: string,
   usuario_confirma?: string
   estado_registro: string,

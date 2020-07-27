@@ -418,7 +418,7 @@ export const listarRegistro = async (req: Request, res: Response): Promise<Respo
     try {
       await Empleado.find({contrata: Emp.contrata._id}).select('_id').then( async(data) => {
         const usuarios = data.map(item => item._id);
-        await Albaran.find({'usuario_entrega': {$in: usuarios }, tipo: 'traslado'}).sort({
+        await Albaran.find({'usuario_entrega': {$in: usuarios }, tipo: 'traslado', estado_registro: 'PENDIENTE'}).sort({
           createdAt: -1
         }).populate({
           path: 'almacen_entrada',
@@ -687,11 +687,12 @@ export const actualizarRegistro = async (req: Request, res: Response): Promise<R
         //almacen == id del albaran
         status = 200;
         const { almacen, observacion, aprobado } = req.body;
-        await Albaran.findById({_id: almacen}).then(async(data) => {
+        await Albaran.findById({_id: almacen}).populate('almacen_salida').then(async(data) => {
           if (data && data.almacen_salida) {
+            let centralAContrata = data.almacen_salida.tipo === 'IMC' ? true:false
             if (estados.includes(data.estado_operacion) && data.estado_registro === 'PENDIENTE') {
               if (aprobado) {
-                await AprobarRegistro(data.lote, data.almacen_entrada, data.almacen_salida).then(async() => {
+                await AprobarRegistro(data.lote, data.almacen_entrada, data.almacen_salida._id, false, centralAContrata).then(async() => {
                   const obs = observacion ? observacion : `operación aprobada por ${Empleado.nombre} ${Empleado.apellidos}`
                   await Albaran.findByIdAndUpdate({_id: almacen}, {
                     usuario_confirma: Empleado._id,
@@ -710,7 +711,7 @@ export const actualizarRegistro = async (req: Request, res: Response): Promise<R
                   })
                 })
               } else {
-                await DeshacerSalida(data.lote, data.almacen_entrada, data.almacen_salida).then(async(datos) => {
+                await DeshacerSalida(data.lote, data.almacen_entrada, data.almacen_salida._id).then(async(datos) => {
                   const obs = observacion ? observacion : `operación rechazada por ${Empleado.nombre} ${Empleado.apellidos}`
                   await Albaran.findByIdAndUpdate({_id: almacen}, {
                     lote: datos,

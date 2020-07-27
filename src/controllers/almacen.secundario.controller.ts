@@ -75,8 +75,12 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
         await Almacen.findOne({_id: almacenTecnico}).populate('ferreteria.material').then(async(almacen) => {
           if (almacen) {
             await Equipo.find({
-              estado: {$ne: 'liquidado'}, 
-              $or: [{almacen_entrada: almacen._id}, {almacen_salida: almacen._id}]
+              $and:[
+                {$or: [
+                  {estado: 'contable'}, {estado: 'traslado'}
+                ]}, 
+                {$or: [{almacen_entrada: almacen._id}, {almacen_salida: almacen._id}]}
+              ]
             }).populate('material').populate({
               path: 'almacen_entrada',
               select: 'tecnico contrata tipo',
@@ -209,13 +213,23 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
       await Registro.find({createdAt: { 
         $gte: moment(fechaInicio).format('YYYY-MM-DD HH:mm') , 
         $lte: moment(fechaFin).format('YYYY-MM-DD HH:mm') } 
-      }).populate('tecnico gestor').populate({
-        path: 'material_usado.material_no_seriado.material'
       }).populate({
-        path: 'material_usado.material_seriado.material'
+        path: 'tecnico',
+        select: 'nombre apellidos carnet documento_identidad'
       }).populate({
-        path: 'material_usado.material_baja.material'
-      }).then((datos) => {
+        path: 'gestor',
+        select: 'nombre apellidos'
+      }).populate({
+        path: 'material_usado.material_no_seriado.material',
+        select: 'nombre seriado medida tipo'
+      }).populate({
+        path: 'material_usado.material_seriado.material',
+        select: 'nombre seriado medida tipo'
+      }).populate({
+        path: 'material_usado.material_baja.material',
+        select: 'nombre seriado medida tipo'
+      }).populate('orden').then((datos) => {
+        console.log('aki')
         respuesta = {
           title: 'Busqueda correcta.',
           status: 'success',
@@ -239,12 +253,18 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
   } else if (metodo === 'buscarRegistroCodigo') {
     try {
       const { requerimiento } = req.headers;
-      await Registro.find({codigo_requerimiento: requerimiento}).populate('tecnico gestor').populate({
+      await Registro.find({$or: [
+        {codigo_requerimiento: requerimiento},
+        {'material_usado.material_seriado.serie': requerimiento}
+      ]}).populate('tecnico gestor').populate({
           path: 'material_usado.material_no_seriado.material'
         }).populate({
           path: 'material_usado.material_seriado.material'
         }).populate({
           path: 'material_usado.material_baja.material'
+        }).populate({
+          path: 'codigo_requerimiento',
+          model: 'Ordene'
         }).then((datos) => {
           respuesta = {
             title: 'Busqueda correcta.',

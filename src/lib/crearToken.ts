@@ -15,7 +15,7 @@ function createToken(empleado: IEmpleado, id: string) {
     imagen: empleado.usuario.imagen_perfil,
     tipo: empleado.usuario.tipo
   }, config.jwtSecret, {
-    expiresIn: 57600
+    expiresIn: 86400
   });
 };
 

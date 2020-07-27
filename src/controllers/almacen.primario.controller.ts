@@ -116,9 +116,13 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
         const equiposAlmacen = new Array;
         if (almacen) {
           await Equipo.find({
-            'estado': {$ne: 'liquidado'},
-            $or: [
-              {almacen_entrada: almacen._id}, {almacen_salida: almacen._id}
+            $and: [
+              {$or: [
+                {estado: 'contable'}, {estado: 'traslado'}
+              ]},
+              {$or: [
+                {almacen_entrada: almacen._id}, {almacen_salida: almacen._id}
+              ]}
             ]
           }).populate('material').populate({
             path: 'almacen_entrada',
@@ -190,9 +194,13 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
             } 
             //buscar los equipos con el id del almacen
             return await Equipo.find({
-              estado: { $ne: 'liquidado'},
-              $or: [
-                {almacen_entrada: alm._id}, {almacen_salida: alm._id}
+              $and: [
+                {$or: [
+                  {estado: 'contable'}, {estado: 'traslado'}
+                ]},
+                {$or: [
+                  {almacen_entrada: alm._id}, {almacen_salida: alm._id}
+                ]}
               ]
             }).populate('material').populate({
               path: 'almacen_entrada',
