@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { IEmpleado } from '../models/Empleado';
 import Contrata from '../models/Contrata';
 import logger from '../lib/logger';
+import { keys } from '../services/keys';
+import { getDataRedis, setDataRedis, delDataRedis } from '../services/clienteRedis';
 
 export const listarContratas = async (req: Request, res: Response ) => {
   const nivelUsuario: IEmpleado|any = req.user
@@ -22,21 +24,34 @@ export const listarContratas = async (req: Request, res: Response ) => {
       return res.status(404).send([])
     }
   } else if (req.headers.metodo === 'listaContratas') {
-    await Contrata.find({activo: true}).sort('nombre').select({nombre: 1})
-        .then((contratas) => {
-          return res.status(201).send(contratas)
-      }).catch((error) => {
-          logger.log({
-            level: 'error',
-            message: error.message,
-            service: 'Error buscando contratas'
-          });
-          return res.status(404).send({title: 'Error buscando las contratas.', message: error.message});
-      })
+    await getDataRedis(keys.contratas).then(async(dataRedis) => {
+      if (dataRedis) {
+        return res.status(201).send(dataRedis);
+      } else {
+          await Contrata.find({activo: true}).sort('nombre').select({nombre: 1})
+          .then(async(contratas) => {
+            await setDataRedis(keys.contratas, contratas);
+            return res.status(201).send(contratas)
+        }).catch((error) => {
+            logger.log({
+              level: 'error',
+              message: error.message,
+              service: 'Error buscando contratas'
+            });
+            return res.status(404).send({title: 'Error buscando las contratas.', message: error.message});
+        })
+      }
+    }).catch((error) => {
+      logger.log({
+        level: 'error',
+        message: error,
+        service: 'Error buscando contratas(redis)'
+      });
+      return res.status(404).send({title: 'Error buscando las contratas (c).', message: error});
+    })
   } else {
     return res.send('¿Estás Perdido?')
   }
-  
 }
 
 export const crearContrata = async (req: Request, res: Response) => {
@@ -47,6 +62,9 @@ export const crearContrata = async (req: Request, res: Response) => {
       const nuevaContrata = new Contrata(req.body);
       await nuevaContrata.save()
         .then(() => {
+          //borramos el la contrata
+          delDataRedis(keys.contratas);
+          //registro en el log
           logger.log({level: 'info', message: 'Creó nueva contrata - ' + nivelUsuario.usuario.email})
           return res.send({title: 'Contrata creada correctamente.', status: 'success'});
       }).catch((error) => {
@@ -77,6 +95,9 @@ export const actualizarContrata = async (req: Request, res: Response) => {
       await Contrata.findByIdAndUpdate({_id: id} , {
           nombre, ruc, descripcion, fecha_incorporacion
         }).then(() => {
+          //borramos el la contrata
+          delDataRedis(keys.contratas);
+          //registro en el log
           logger.log({level: 'info', message: 'Contrata actualizada - ' + id + ' - '+ nivelUsuario.usuario.email})
           return res.send({title: 'Contrata actualizada correctamente.', status: 'success'});
         }).catch((error) => {
@@ -95,6 +116,8 @@ export const actualizarContrata = async (req: Request, res: Response) => {
       });
       return res.send({title: 'Error en el servidor.', status: 'error'});
     }
+  } else {
+    return res.send({title: 'Metodo incorrecto.', status: 'error'})
   }
 }
 
@@ -106,6 +129,9 @@ export const borrarContrata = async (req: Request, res: Response) => {
       const { id, activo } = req.body;
       await Contrata.findByIdAndUpdate({_id: id}, {activo: !activo})
         .then(() => {
+          //borramos el la contrata
+          delDataRedis(keys.contratas);
+          //registro en el log
           logger.log({level: 'info', message: `Contrata ${activo ? 'desactivada' : 'activada'} - ${id} - ${nivelUsuario.usuario.email}`})
           return res.send({title: `Contrata ${activo ? 'desactivada' : 'activada'} correctamente.`, status: 'success'});
       }).catch((error) => {
@@ -124,5 +150,7 @@ export const borrarContrata = async (req: Request, res: Response) => {
       });
       return res.send({title: 'Error en el servidor.', status: 'error'});
     }
+  } else {
+    return res.send({title: 'metodo incorrecto.', status: 'error'});
   }
 }

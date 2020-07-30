@@ -208,5 +208,4 @@ export default async function obtenerFiltros (tipo:string|any, data:Array<IOrden
     default:
       break;
   }
-
 }

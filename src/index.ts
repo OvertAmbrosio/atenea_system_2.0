@@ -1,6 +1,7 @@
 import 'newrelic';
 import schedule from 'node-schedule';
 import app from './app';
+import './redis';
 import './database'
 import logger from './lib/logger';
 import Session from './models/Session'
@@ -13,7 +14,7 @@ async function main() {
       logger.info('Ninguna sesión quedará viva en mi guardia!');
     });
   }).on('error', function (e) {
-    logger.log({
+    logger.info({
       level: 'error',
       message: e.message,
       service: 'Index'

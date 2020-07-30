@@ -9,7 +9,6 @@ import multer from 'multer';
 import path from 'path'
 import passport from 'passport';
 import passportMiddleware from './middlewares/passport';
-// import memjs from 'memjs';
 //importar rutas
 //<----------------USUARIOS--------------------->
 import authRoutes from './routes/auth.routes';
@@ -25,6 +24,7 @@ import albaranRoutes from './routes/albaran.routes';
 import almacenCentralRoutes from './routes/almacen.central.routes';
 import almacenPrimarioRoutes from './routes/almacen.primario.routes';
 import almacenSecundarioRoutes from './routes/almacen.secundario.routes';
+import logger from './lib/logger';
 
 const storage = multer.diskStorage({
   destination: path.join(__dirname, 'public/img/uploads'),

@@ -126,7 +126,7 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
     } else {
       respuesta.title = 'No tienes permisos suficientes.';
     }
-  } else if (req.headers.metodo === 'listarLiquidadas') {
+  } else if (req.headers.metodo === 'listarLiquidadas') {//listar ordenes liquidadas por el sistema
     if (nivelAdmin.includes(nivelUsuario.usuario.tipo)) {
       try {
         const tipo: string|any = req.headers.tipo;
@@ -237,7 +237,7 @@ export const listarOrden = async (req: Request, res: Response): Promise<Response
         service: 'buscarOrden (try/catch)'
       })
     }
-  } else if (req.headers.metodo === 'ordenesTecnico') {
+  } else if (req.headers.metodo === 'ordenesTecnico') {//lista de ordenes para la app del tecnico
     status = 200;
     await Orden.find({
       'contrata_asignada.tecnico_asignado.id': nivelUsuario._id,
@@ -362,8 +362,7 @@ export const guardarOrden = async (req: Request, res: Response): Promise<Respons
           return orden;
         });
         await Orden.insertMany(nuevasOrdenes, {ordered:false})
-          .then((resp) => {
-            console.log(resp);
+          .then(() => {
             respuesta = {title: `Ordenes guardadas correctamente.`, status: 'success'};
             status = 200;
         }).catch((error) => {
@@ -483,7 +482,7 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
             })
           })
         ).then((a) => {
-          status = 200
+          status = 200;
           respuesta.title = `${actualizadas} Ordenes actualizadas y ${errores} errores`;
           if (errores !== 0) {
             respuesta.status = 'warning'
@@ -491,7 +490,10 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
             respuesta.status = 'success';
           }
         }).catch((error) => {
-          console.log(error);
+          logger.error({
+            message: error.message,
+            service: 'actualizarOrdenes(promise.all)'
+          })
         })
       } catch (error) {
         respuesta.title = 'Error obteniendo valores.';
@@ -787,7 +789,7 @@ export const actualizarOrden = async (req: Request, res: Response): Promise<Resp
               'contrata_asignada.estado': 'Liquidada',
               'contrata_asignada.tecnico_asignado.estado_orden': 3,
               'contrata_asignada.tecnico_asignado.fecha_finalizado': Date.now(),
-              'contrata_asignada.observacion': `${contrata_asignada.observacion} (Técnico)`
+              'contrata_asignada.observacion': `${contrata_asignada.tecnico_asignado.observacion} (Técnico)`
               },
             $push: { detalle_registro} 
           }).then(async() => {
@@ -879,12 +881,13 @@ export const editarOrden = async (req: Request, res: Response): Promise<Response
 
   if (metodo === 'liquidarOrdenTecnico') {//metodo que envia la orden para liquidar desde la app
     try {
+      //extraccion de datos
       const { almacen_actual, codigo_requerimiento, observacion } = req.body;
       const material_usado = JSON.parse(req.body.material_usado);
       if(material_usado.almacen_actual === null && almacen_actual !== null) material_usado.almacen_actual = almacen_actual;
       const files: any = req.files;
-
-      let objForUpdate:{[key: string]: any} = {
+      //creacion del objeto para actualizar
+      let objForUpdate:any = {
         'contrata_asignada.tecnico_asignado.fecha_enviado': Date.now(),
         'contrata_asignada.tecnico_asignado.estado_orden': 2,
         'contrata_asignada.tecnico_asignado.observacion': observacion,
@@ -935,7 +938,7 @@ export const editarOrden = async (req: Request, res: Response): Promise<Response
         status: 'danger'
       }
     }    
-  } else if (metodo === 'agregarReferencias') {
+  } else if (metodo === 'agregarReferencias') {//metodo para agregar datos de referencia
     if (nivelOperativo.includes(empleado.usuario.tipo)) {
       try {
         const ordenes = req.body;

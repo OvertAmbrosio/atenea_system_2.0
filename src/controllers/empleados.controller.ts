@@ -6,6 +6,8 @@ import Empleado, { IEmpleado } from '../models/Empleado';
 import { ValidarRegistro } from '../validations';
 import logger from '../lib/logger';
 import Almacen from '../models/Almacen';
+import { getDataRedis, setDataRedis, delDataRedis } from '../services/clienteRedis';
+import { keys } from '../services/keys';
 
 const nivelJefes = [2,3,4];
 const nivelAdministrativo = [1,2,3,4];
@@ -121,56 +123,84 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
       return res.status(401).send("Usuario sin permisos");
     }
   } else if (req.headers.metodo === 'listarTecnicos') {
-    await Empleado.find({contrata: nivelUsuario.contrata._id,'usuario.tipo': 9, 'estado_empresa.activo': true})
-      .select({
-        nombre: 1, apellidos: 1
-    }).sort({
-      apellidos: 1
-    }).then((empleados) => {
-        return res.status(201).json(empleados);
-    }).catch((error) => {
-        logger.error({
-          message: error.message,
-          service: 'Listar técnicos de la contrata.'
+    await getDataRedis(keys.tecnicos).then(async(data) => {
+      if (data) {
+        return res.send(data);
+      } else {
+        await Empleado.find({contrata: nivelUsuario.contrata._id,'usuario.tipo': 9, 'estado_empresa.activo': true})
+          .select({
+            nombre: 1, apellidos: 1
+        }).sort({
+          apellidos: 1
+        }).then((empleados) => {
+            setDataRedis(keys.tecnicosGlobal, empleados);
+            return res.status(201).json(empleados);
+        }).catch((error) => {
+            logger.error({
+              message: error.message,
+              service: 'Listar técnicos de la contrata.'
+            })
+            return res.status(400).send('Error obteniendo la lista de tecnicos');
         })
-        return res.status(400).send('Error obteniendo la lista de tecnicos');
+      }
+    }).catch(error => {
+      logger.error({
+        message: error.message,
+        service: 'listarTecnicos(redis)'
+      });
+      return res.status(401).send([])
     })
   } else if (req.headers.metodo === 'listarTecnicosGlobal') {
-    await Empleado.find({'usuario.tipo': 9, 'estado_empresa.activo': true
-      }).populate({path: 'contrata'
-      }).select({ nombre: 1, apellidos: 1, contrata: 1
-      }).sort({'contrata.apellidos': 1}).then((data) => {
-        let contratas = [] as Array<string>;
-        let dataTecnicos = [] as Array<any>;
-        if (data.length > 0) {
-          data.map((item:any) => {
-            if (contratas.includes(item.contrata.nombre)) {
-              dataTecnicos.map((element, i) => {
-                if (element.value === item.contrata._id) {
-                  dataTecnicos[i].children.push({
-                    value: item._id,
-                    label: item.nombre + ' ' + item.apellidos
-                  })
-                }
-              })
-            } else {
-              contratas.push(item.contrata.nombre);
+    await getDataRedis(keys.tecnicosGlobal).then(async(data) => {
+      if (data) {
+        return res.send(data);
+      } else {
+        await Empleado.find({'usuario.tipo': 9, 'estado_empresa.activo': true
+        }).populate({path: 'contrata', select: 'nombre'
+        }).select({ nombre: 1, apellidos: 1, contrata: 1
+        }).sort({'contrata.apellidos': 1}).then((tecnicos) => {
+          let contratas = [] as Array<string>;
+          let contratasID = [] as Array<string>;
+          let dataTecnicos = [] as Array<any>;
+          if (tecnicos.length > 0) {
+            //llenar la lista de contratas
+            tecnicos.forEach((tecnico:any) => {
+              if (!contratas.includes(tecnico.contrata.nombre)) {
+                contratas.push(tecnico.contrata.nombre);
+                contratasID.push(tecnico.contrata._id);
+              }
+            });
+            //recorrer contratas para llenar el children
+            contratas.forEach((contrata, index) => {
               dataTecnicos.push({
-                value: item.contrata._id,
-                label: item.contrata.nombre,
-                children: [{
-                  value: item._id,
-                  label: item.nombre + ' ' + item.apellidos
-                }]
-              });
-            };
-          });
-        };
-        return res.send(dataTecnicos);
-      }).catch((error) => {
-        console.log(error);
-      })
-
+                value: contratasID[index],
+                label: contratas[index],
+                children: (tecnicos.filter((tecnico:any) => tecnico.contrata.nombre === contrata)).map(tecnico => {
+                  return {
+                    value: tecnico._id,
+                    label: tecnico.nombre + ' ' + tecnico.apellidos
+                  };
+                })
+              })
+            })
+          };
+          setDataRedis(keys.tecnicosGlobal, dataTecnicos);
+          return res.send(dataTecnicos);
+        }).catch((error) => {
+          logger.error({
+            message: error.message,
+            service: 'listarTecnicosGlobal'
+          })
+          return res.send([])
+        })
+      }
+    }).catch(error => {
+      logger.error({
+        message: error.message,
+        service: 'listarTecnicosGlobal(redis)'
+      });
+      return res.status(401).send([])
+    })
   } else if (req.headers.metodo === 'obtenerPerfil') {
     await Empleado.findById({_id: nivelUsuario._id}).select({
       nombre:1,
@@ -227,6 +257,10 @@ export const crearEmpleado = async (req: Request, res: Response): Promise<Respon
       })      
       await nuevoUsuario.save()
         .then((u) => {
+          //borrar datos de redis
+          delDataRedis(keys.tecnicosGlobal);
+          delDataRedis(keys.tecnicos);
+          //enviar respuesta
           respuesta = {title: `Usuario '${u.usuario.email} creado correctamente.`, status: 'success'};
           status = 201;
       }).catch((error) => {
@@ -241,6 +275,8 @@ export const crearEmpleado = async (req: Request, res: Response): Promise<Respon
     } else {
       respuesta = {title: 'Usuario sin permisos', status: 'error'}
     }
+  } else {
+    return res.send(respuesta);
   }
 
   return res.status(status).send(respuesta);
@@ -258,7 +294,6 @@ export const actualizarEmpleado = async (req: Request, res: Response): Promise<R
         nombre, apellidos, email, contrata_nombre, tipo_documento, numero_documento,area , carnet, nacionalidad, observacion
       } = req.body.row;
       if (Number(tipoUser) < 5) {
-        await Almacen.findOneAndUpdate({tecnico: req.body.key}, {contrata: contrata_nombre})
         await Empleado.findByIdAndUpdate({_id: req.body.key}, {
           nombre,
           apellidos,
@@ -272,12 +307,20 @@ export const actualizarEmpleado = async (req: Request, res: Response): Promise<R
           carnet,
           nacionalidad,
           observacion
-        }).then(() => {
+        }).then(async() => {
+          await Almacen.findOneAndUpdate({tecnico: req.body.key}, {contrata: contrata_nombre}).catch(error => logger.error({
+            message: error.message,
+            service: 'actualizarEmpleado(almacen)'
+          }))
           logger.log({
             level: 'info',
             message: `Empleado ${email} actualizado por ${nivelUsuario.usuario.email}`,
             service: 'Actualizar Empleado'
           })
+          //borrar datos de redis
+          delDataRedis(keys.tecnicosGlobal);
+          delDataRedis(keys.tecnicos);
+          //enviar respuesta
           respuesta = {title: 'Empleado actualizado correctamente.', status: 'success'}
         }).catch((error:any) => {
           logger.error({
@@ -320,7 +363,11 @@ export const actualizarEmpleado = async (req: Request, res: Response): Promise<R
         status = 200
       }
     } catch (error) {
-      console.log(error);
+      logger.error({
+        message: error.message,
+        service: 'actualizarEmpleado(try/catch)'
+      })
+      return res.send(respuesta);
     }
   } else if(req.headers.metodo === 'actualizarFechas'){
     if (nivelUsuario.usuario.tipo < 5) {
@@ -389,7 +436,13 @@ export const actualizarEmpleado = async (req: Request, res: Response): Promise<R
     if(req.body.imagen_perfil) objForUpdate['usuario.imagen_perfil'] = req.body.imagen_perfil;
 
     await Empleado.findByIdAndUpdate({_id: nivelUsuario._id}, { $set: objForUpdate}).then(() => {
-        status = 201
+        status = 201;
+        if (req.body.nombre) {
+          //borrar datos de redis
+          delDataRedis(keys.tecnicosGlobal);
+          delDataRedis(keys.tecnicos);
+          //enviar respuesta
+        }
         respuesta = {title: 'Usuario actualizado correctamente.', status: 'success'}
       }).catch((error) => {
         logger.error({message: error.message, service: 'Editando perfil.'});

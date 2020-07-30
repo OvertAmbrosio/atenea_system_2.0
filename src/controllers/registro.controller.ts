@@ -116,8 +116,6 @@ export const listarRegistros = async (req: Request, res: Response):Promise<Respo
 
       if (contrata !== null || contrata !== undefined) queryConsulta['contrata'] = contrata;
 
-      console.log(queryConsulta);
-
       await Registro.find(queryConsulta).populate({
         path: 'tecnico',
         select: 'nombre apellidos'
