@@ -1,6 +1,8 @@
 import { model, Schema, Document } from 'mongoose';
 
 export interface IRegistro extends Document {
+  orden: any,
+  codigo_requerimiento: string,
   tecnico: string,
   gestor: string,
   contrata: string,
@@ -28,11 +30,7 @@ export interface IRegistro extends Document {
   observacion?: string
 }
 
-const registroSchema = new Schema({
-  estado: {// pendiende, aprobado, recahzado
-    type: String,
-    default: 'pendiente'
-  }, 
+const registroSchema = new Schema({ 
   codigo_requerimiento: {
     type: String,
     required: true,
@@ -43,13 +41,13 @@ const registroSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'Empleado'
   },
-  contrata: {
-    type: Schema.Types.ObjectId,
-    ref: 'Contrata'
-  },
   gestor: {
     type: Schema.Types.ObjectId,
     ref: 'Empleado'
+  },
+  contrata: {
+    type: Schema.Types.ObjectId,
+    ref: 'Contrata'
   },
   material_usado: {
     almacen_actual: {//almacen del tecnico

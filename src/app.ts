@@ -24,7 +24,6 @@ import albaranRoutes from './routes/albaran.routes';
 import almacenCentralRoutes from './routes/almacen.central.routes';
 import almacenPrimarioRoutes from './routes/almacen.primario.routes';
 import almacenSecundarioRoutes from './routes/almacen.secundario.routes';
-import logger from './lib/logger';
 
 const storage = multer.diskStorage({
   destination: path.join(__dirname, 'public/img/uploads'),

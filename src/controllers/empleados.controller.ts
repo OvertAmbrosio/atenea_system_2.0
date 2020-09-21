@@ -133,7 +133,7 @@ export const listarEmpleados = async (req: Request, res: Response ) => {
         }).sort({
           apellidos: 1
         }).then((empleados) => {
-            setDataRedis(keys.tecnicosGlobal, empleados);
+            setDataRedis(keys.tecnicos, empleados);
             return res.status(201).json(empleados);
         }).catch((error) => {
             logger.error({

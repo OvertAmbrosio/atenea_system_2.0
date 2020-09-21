@@ -13,6 +13,16 @@ export const listarRegistros = async (req: Request, res: Response):Promise<Respo
     try {
       const fechaInicio: string = String(req.headers.fechainicio);
       const fechaFin: string = String(req.headers.fechafin); 
+      const contrata = String(req.headers.contrata).toLowerCase();
+      const tipo = String(req.headers.tipo).toLowerCase();
+
+      let objFind: any = {
+        createdAt: { 
+          $gte: moment(fechaInicio).format('YYYY-MM-DD HH:mm') , 
+          $lte: moment(fechaFin).format('YYYY-MM-DD HH:mm') } 
+      };
+
+      if(contrata !== '[object Object]' && contrata !== '' && contrata !== undefined && contrata !== null && contrata !== 'todo') objFind['contrata'] = contrata;
       
       await Registro.find({createdAt: { 
         $gte: moment(fechaInicio).format('YYYY-MM-DD HH:mm') , 
@@ -36,12 +46,21 @@ export const listarRegistros = async (req: Request, res: Response):Promise<Respo
         path: 'orden',
         select: '-_id tipo'
       }).then((datos) => {
-        respuesta = {
-          title: 'Busqueda correcta.',
-          status: 'success',
-          data: datos,
-          dato: ''
-        };
+        if(contrata !== '[object Object]' && tipo !== '' && tipo !== undefined && tipo !== null && tipo !== 'todo') {
+          respuesta = {
+            title: 'Busqueda correcta.',
+            status: 'success',
+            data: datos.filter(registro => registro.orden.tipo === tipo),
+            dato: ''
+          };
+        } else {
+          respuesta = {
+            title: 'Busqueda correcta.',
+            status: 'success',
+            data: datos,
+            dato: ''
+          };
+        }
       }).catch((error) => {
         logger.error({
           message: error.message,
@@ -58,7 +77,7 @@ export const listarRegistros = async (req: Request, res: Response):Promise<Respo
     }
   } else if (metodo === 'buscarRegistroCodigo') {
     try {
-      const { busqueda } = req.headers;
+      const busqueda  = String(req.headers.busqueda);
       await Registro.find({$or: [
         {codigo_requerimiento: busqueda},
         {'material_usado.material_seriado.serie': busqueda}
@@ -105,7 +124,7 @@ export const listarRegistros = async (req: Request, res: Response):Promise<Respo
     try {
       const fechaInicio: string = String(req.headers.fechainicio);
       const fechaFin: string = String(req.headers.fechafin); 
-      const contrata = req.headers.busqueda;
+      const contrata = String(req.headers.busqueda);
 
       let queryConsulta:any = {
         createdAt: { 
@@ -114,7 +133,7 @@ export const listarRegistros = async (req: Request, res: Response):Promise<Respo
         }
       };
 
-      if (contrata !== null || contrata !== undefined) queryConsulta['contrata'] = contrata;
+      if (contrata !== '[object Object]' && contrata !== null && contrata !== undefined) queryConsulta['contrata'] = contrata;
 
       await Registro.find(queryConsulta).populate({
         path: 'tecnico',

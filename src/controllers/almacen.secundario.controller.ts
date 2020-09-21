@@ -168,7 +168,9 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
     await Almacen.findOne({tecnico: Empleado._id}).populate('ferreteria.material').sort('updatedAt').then(async(almacen) => {
       if (almacen) {
         //los equipos liquidados tienen el almacen del tec. en almacen_salida y almacen_entrada en null
-        await Equipo.find({almacen_entrada: almacen?._id}).populate({
+        await Equipo.find({almacen_entrada: almacen?._id, $or:[
+          {estado: 'traslado'}, {estado: 'contable'}
+        ]}).populate({
           path: 'material',
           select: 'nombre _id'
         }).then((equipos) => {
@@ -252,7 +254,7 @@ export const listarAlmacen = async (req: Request, res: Response):Promise<Respons
     }
   } else if (metodo === 'buscarRegistroCodigo') {
     try {
-      const { requerimiento } = req.headers;
+      const requerimiento = String(req.headers.requerimiento);
       await Registro.find({$or: [
         {codigo_requerimiento: requerimiento},
         {'material_usado.material_seriado.serie': requerimiento}
